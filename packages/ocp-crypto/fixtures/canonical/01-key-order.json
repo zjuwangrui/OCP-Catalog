@@ -1,0 +1,104 @@
+{
+  "category": "key-order",
+  "spec": "docs/specs/crypto/canonicalization.md §5",
+  "description": "成员名排序：ASCII、大小写、前缀关系、代理项边界",
+  "vector_count": 12,
+  "vectors": [
+    {
+      "name": "key-order-ascii",
+      "reason": "基础升序",
+      "spec": "§5.1",
+      "input_raw": "{\"b\":1,\"a\":2}",
+      "expected_canonical": "{\"a\":2,\"b\":1}",
+      "expected_sha256": "sha256:d3626ac30a87e6f7a6428233b3c68299976865fa5508e4267c5415c76af7a772"
+    },
+    {
+      "name": "key-order-case-mixed",
+      "reason": "U+0041 < U+0061，大写在前；locale-aware 排序会错",
+      "spec": "§5.1",
+      "input_raw": "{\"a\":1,\"A\":2,\"b\":3,\"B\":4}",
+      "expected_canonical": "{\"A\":2,\"B\":4,\"a\":1,\"b\":3}",
+      "expected_sha256": "sha256:34786e862ebae88c0eeb4393ff6007af892ffa44ddf7b035fee38092e4b1571d"
+    },
+    {
+      "name": "key-order-prefix",
+      "reason": "短前缀在前",
+      "spec": "§5.1",
+      "input_raw": "{\"ab\":1,\"a\":2}",
+      "expected_canonical": "{\"a\":2,\"ab\":1}",
+      "expected_sha256": "sha256:ee8723a8d7d6ef8e9dd499dd6308103c80dd8b74f4e349747090dc787da6d0f8"
+    },
+    {
+      "name": "key-order-prefix-separator",
+      "reason": "'-'(U+002D) < 'b'(U+0062)，按长度优先排序会错",
+      "spec": "§5.1",
+      "input_raw": "{\"ab\":1,\"a-b\":2,\"a\":3}",
+      "expected_canonical": "{\"a\":3,\"a-b\":2,\"ab\":1}",
+      "expected_sha256": "sha256:05d29d935187c0953eb282d6bcdf4d3ea17b47e163de4fd3a5eb429a44679c25"
+    },
+    {
+      "name": "key-order-empty-key",
+      "reason": "空字符串键排最前",
+      "spec": "§5.1",
+      "input_raw": "{\"a\":1,\"\":2}",
+      "expected_canonical": "{\"\":2,\"a\":1}",
+      "expected_sha256": "sha256:521339c3bd7ac04721bdad192e9ba038cb377bca61a0a24f08fe55c26ef61673"
+    },
+    {
+      "name": "key-order-astral-vs-fffd",
+      "reason": "规范 §5.2 原例：D83D < FFFD，码点序/UTF-8 序结论相反",
+      "spec": "§5.2",
+      "input_raw": "{\"\\ufffd\":1,\"\\ud83d\\ude00\":2}",
+      "expected_canonical": "{\"😀\":2,\"�\":1}",
+      "expected_sha256": "sha256:ee25c27251f38d1794ae1ce44d35d4e801cd43fb05e12f1b34aff3de57a69848"
+    },
+    {
+      "name": "key-order-astral-vs-fullwidth",
+      "reason": "同 §5.2 但避开 U+FFFD（避免与解码失败的替换字符混淆）",
+      "spec": "§5.2",
+      "input_raw": "{\"\\uff21\":1,\"\\ud83d\\ude00\":2}",
+      "expected_canonical": "{\"😀\":2,\"Ａ\":1}",
+      "expected_sha256": "sha256:983ec72f503aa05fb485ea06724aef2c8cd88a98b801dbc3518ca3cb6fa34bbd"
+    },
+    {
+      "name": "key-order-two-astral-high",
+      "reason": "D800 < D83D：两个 BMP 外字符比高代理项",
+      "spec": "§5.2",
+      "input_raw": "{\"\\ud83d\\ude00\":1,\"\\ud800\\udc00\":2}",
+      "expected_canonical": "{\"𐀀\":2,\"😀\":1}",
+      "expected_sha256": "sha256:09ce48b00fffad159e188ee9d6e0d691cb5ca679047a0283424d9df92de28dd7"
+    },
+    {
+      "name": "key-order-two-astral-low",
+      "reason": "高代理项相同，比低代理项 DE00 < DE01",
+      "spec": "§5.2",
+      "input_raw": "{\"\\ud83d\\ude01\":1,\"\\ud83d\\ude00\":2}",
+      "expected_canonical": "{\"😀\":2,\"😁\":1}",
+      "expected_sha256": "sha256:e1387910f0cbfd0658114d873a5385d21f16110b602ca16d2ef26b3b8d101814"
+    },
+    {
+      "name": "key-order-surrogate-block-boundary",
+      "reason": "D7FF < D83D < E000：输入已有序，码点序会把它重排",
+      "spec": "§5.2",
+      "input_raw": "{\"\\ud7ff\":1,\"\\ud83d\\ude00\":2,\"\\ue000\":3}",
+      "expected_canonical": "{\"퟿\":1,\"😀\":2,\"\":3}",
+      "expected_sha256": "sha256:6782095f7aecf13e353b97ded81771d15874345ce0d85c2e483506b53472e5c1"
+    },
+    {
+      "name": "key-order-idempotent-a",
+      "reason": "与 -b 同一逻辑对象、不同字段序，哈希必须相等",
+      "spec": "§5.1",
+      "input_raw": "{\"z\":1,\"m\":{\"b\":2,\"a\":3},\"a\":[1,2]}",
+      "expected_canonical": "{\"a\":[1,2],\"m\":{\"a\":3,\"b\":2},\"z\":1}",
+      "expected_sha256": "sha256:4da9e09f4c7b06844ce917cfba0f6461475849f11d75d959d9919fc19fd3cb7d"
+    },
+    {
+      "name": "key-order-idempotent-b",
+      "reason": "与 -a 同一逻辑对象、不同字段序，哈希必须相等",
+      "spec": "§5.1",
+      "input_raw": "{\"a\":[1,2],\"z\":1,\"m\":{\"a\":3,\"b\":2}}",
+      "expected_canonical": "{\"a\":[1,2],\"m\":{\"a\":3,\"b\":2},\"z\":1}",
+      "expected_sha256": "sha256:4da9e09f4c7b06844ce917cfba0f6461475849f11d75d959d9919fc19fd3cb7d"
+    }
+  ]
+}

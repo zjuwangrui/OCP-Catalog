@@ -74,7 +74,7 @@ W7  可观测性 + 文档 ─────┘  ★ M 档完成
 | 小任务 | 天 | 内容 | 完成判据 |
 |---|---|---|---|
 | **W1-T1** | 周一二 | ① **A1 假设闸门会**（30 分钟，最优先）<br>② `docs/specs/crypto/canonicalization.md` 起草——JCS（RFC 8785）子集<br>③ 定稿四条规则：键序 / Unicode 转义 / 数字表示 / 空值处理 | 四条规则**无歧义**，可交付他人独立实现 |
-| **W1-T2** | 周三四 | `packages/ocp-crypto/fixtures/canonical/*.json`——**≥20 条测试向量**，覆盖键序、深层嵌套、Unicode、转义、数字边界、空数组 / 空对象 | 每条向量含 `input` + `expected_canonical` + `expected_sha256` 三元组 |
+| **W1-T2** | 周三四 | `packages/ocp-crypto/fixtures/canonical/*.json`——**≥20 条测试向量**，覆盖键序、深层嵌套、Unicode、转义、数字边界、空数组 / 空对象 | 每条向量含 `input_raw` + `expected_canonical` + `expected_sha256`（接受类）或 `input_raw` + `expected_error`（拒绝类）；拒绝类错误码有统一取值 |
 | **W1-T3** | 周五 | `packages/ocp-crypto` 包骨架（对齐现有 8 个包形态）+ TS 版 `canonicalize()` | `bun test` 绿，20 条向量全过 |
 
 > **向量优先写边界情形，不写 happy path。** 覆盖不足的代价是 W4 才暴露差异，届时返工三种语言。
@@ -189,9 +189,9 @@ W7  可观测性 + 文档 ─────┘  ★ M 档完成
 ## 3. 工程约定
 
 **分支与合入**
-- 每周一条分支 `feat/crypto-attribution-w{n}`，周五合入 `main`
+- 全模块共用一条长分支 `crypto-attribution`，从个人 fork（`origin`）推出，向 `Open-Commerce-Protocol/OCP-Catalog`（`upstream`）的 `main` 提 PR
 - 小任务粒度提交：commit message 前缀用 `W3-T2:` 便于回溯
-- 每周产出**可独立回滚**，不产生跨周的半成品状态
+- 每周产出**可独立回滚**，不产生跨周的半成品状态；由于走单一长分支，「可回滚」由 commit 边界保证而非分支边界，因此**禁止**跨小任务的混合提交
 
 **每周固定节奏**
 

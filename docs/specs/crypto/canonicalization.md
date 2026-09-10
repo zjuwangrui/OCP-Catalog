@@ -332,17 +332,31 @@ sha256:{64 位小写十六进制}
 
 ```jsonc
 {
-  "name": "key-order-astral-plane",
+  "name": "key-order-astral-vs-fffd",
   "reason": "UTF-16 代码单元序与码点序结论相反",
-  "input": { "�": 1, "😀": 2 },
+  "spec": "§5.2",
+  "input_raw": "{\"\\ufffd\":1,\"\\ud83d\\ude00\":2}",
   "expected_canonical": "{\"😀\":2,\"�\":1}",
-  "expected_sha256": "sha256:..."
+  "expected_sha256": "sha256:ee25c272...9848"
 }
 ```
 
-拒绝类向量用 `expected_error` 取代后两个字段。
+`input_raw` 是**字符串**，内容为待规范化的 JSON 文本（§4.1 的 wire bytes）。**禁止**把输入写成已解析的 JSON 值：拒绝类向量的输入按定义就是解析器会拒绝或会静默改写的东西——加载 fixture 的解析器自己就会把 `{"a":1,"a":2}` 去重、把 `{"a":NaN}` 变成非法 JSON、也无法让 `[1,2]` 作为 object 字段存在。读取向量后必须把 `input_raw` 的 UTF-8 编码直接交给被测实现，不得先用标准库解析一遍。
 
-向量集**必须**覆盖以下类别，每类至少一条（详细清单为 W1-T2 交付物）：
+拒绝类向量用 `expected_error` 取代后两个字段，取值为下列**稳定错误码**之一。规范只说「报错终止」在测试里不可判定——三个实现都抛异常但抛的不是同一件事时，测试仍会绿：
+
+| 错误码 | 触发条件 | 条款 |
+|---|---|---|
+| `duplicate_key` | 同一 object 内成员名重复（解码后比较） | §5.4 |
+| `lone_surrogate` | 字符串或成员名含未成对代理项 | §6.4 |
+| `non_integer_number` | number 的数学值非整数 | §7.2 |
+| `number_out_of_range` | 绝对值 > 2⁵³−1，含解析后溢出为 Infinity 的字面量 | §7.2 / §7.3 |
+| `non_finite_number` | 字面量 `NaN` / `Infinity` / `-Infinity` | §7.5 |
+| `top_level_not_object` | 顶层不是 JSON object | §4.2 |
+
+错误码不要求出现在用户可见消息中，只要求实现内部可稳定映射。
+
+向量集**必须**覆盖以下类别，每类至少一条：
 
 1. 键序：ASCII、大小写混合、前缀关系（`a` / `ab`）、非 BMP 字符
 2. 嵌套：多层 object 各自独立排序
@@ -351,7 +365,14 @@ sha256:{64 位小写十六进制}
 5. 空值：`null` 保留、空容器保留、数组顺序保留
 6. 拒绝类：重复键、孤立代理项、`NaN`、顶层非 object
 
+此外，下列两组的**关系**本身是断言内容，不是「各自过」即可：
+
+- 同一逻辑对象的两种字段序，`expected_sha256` **必须相等**
+- 「成员缺省」与「成员为 null」，`expected_sha256` **必须不等**（§8.2）
+
 **向量优先覆盖边界与拒绝情形。** happy path 在任何实现里都会过，它不提供信息。
+
+向量清单与各语言加载注意事项见 [`packages/ocp-crypto/fixtures/canonical/README.md`](../../../packages/ocp-crypto/fixtures/canonical/README.md)。
 
 ---
 

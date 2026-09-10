@@ -1,0 +1,48 @@
+{
+  "category": "nesting",
+  "spec": "docs/specs/crypto/canonicalization.md §5.1 / §8.4",
+  "description": "嵌套：每层独立排序，数组不排序",
+  "vector_count": 5,
+  "vectors": [
+    {
+      "name": "nesting-independent-sort",
+      "reason": "子 object 各自排序，与父层无关",
+      "spec": "§5.1",
+      "input_raw": "{\"b\":{\"d\":1,\"c\":2},\"a\":{\"f\":3,\"e\":4}}",
+      "expected_canonical": "{\"a\":{\"e\":4,\"f\":3},\"b\":{\"c\":2,\"d\":1}}",
+      "expected_sha256": "sha256:60e927ed241e79c792b5c68cacb159b6b81532bce1ebd0eaa6d5354d880b1a6a"
+    },
+    {
+      "name": "nesting-objects-in-array",
+      "reason": "数组元素顺序保留，元素内部排序",
+      "spec": "§5.1",
+      "input_raw": "{\"a\":[{\"z\":1,\"y\":2},{\"b\":3,\"a\":4}]}",
+      "expected_canonical": "{\"a\":[{\"y\":2,\"z\":1},{\"a\":4,\"b\":3}]}",
+      "expected_sha256": "sha256:c3c3a98cc52d1a9595114099ec5689008a1adeb0221b7908ece2004bd3ba05de"
+    },
+    {
+      "name": "nesting-four-levels",
+      "reason": "递归深度：每一层都要排",
+      "spec": "§5.1",
+      "input_raw": "{\"b\":{\"b\":{\"b\":{\"b\":1,\"a\":2},\"a\":3},\"a\":4},\"a\":5}",
+      "expected_canonical": "{\"a\":5,\"b\":{\"a\":4,\"b\":{\"a\":3,\"b\":{\"a\":2,\"b\":1}}}}",
+      "expected_sha256": "sha256:58c031098d57a919a7b0191ff1adb3dbabd27ab972898bb737246797eb8adddf"
+    },
+    {
+      "name": "nesting-array-of-arrays",
+      "reason": "嵌套数组内元素不排序、不去重",
+      "spec": "§8.4",
+      "input_raw": "{\"a\":[[3,1],[2],[]]}",
+      "expected_canonical": "{\"a\":[[3,1],[2],[]]}",
+      "expected_sha256": "sha256:edea713039fc763e978a316f9f2713dc99362d82593256888467875cd96b246a"
+    },
+    {
+      "name": "nesting-array-of-objects-order",
+      "reason": "同构 object 组成的数组，数组序是语义",
+      "spec": "§8.4",
+      "input_raw": "{\"a\":[{\"k\":2},{\"k\":1}]}",
+      "expected_canonical": "{\"a\":[{\"k\":2},{\"k\":1}]}",
+      "expected_sha256": "sha256:4c3a938f1b6d6cee1c121400a981dd73c42d438ee72934b8b297ae388a3d2355"
+    }
+  ]
+}

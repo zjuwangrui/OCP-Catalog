@@ -1,0 +1,112 @@
+{
+  "category": "escaping",
+  "spec": "docs/specs/crypto/canonicalization.md §6",
+  "description": "转义：七个短转义、C0 小写十六进制、禁止转义的字符",
+  "vector_count": 13,
+  "vectors": [
+    {
+      "name": "escape-seven-short",
+      "reason": "七个短转义全覆盖",
+      "spec": "§6.1",
+      "input_raw": "{\"a\":\"\\b\\t\\n\\f\\r\\\"\\\\\"}",
+      "expected_canonical": "{\"a\":\"\\b\\t\\n\\f\\r\\\"\\\\\"}",
+      "expected_sha256": "sha256:f001b52fc7ae312e409c9f20f55bcd97c17abaeb0cb28fcc1dc3a497a209744e"
+    },
+    {
+      "name": "escape-vertical-tab",
+      "reason": "U+000B 无短转义形式，必须输出 \\\\u000b（小写）",
+      "spec": "§6.1",
+      "input_raw": "{\"a\":\"\\u000B\"}",
+      "expected_canonical": "{\"a\":\"\\u000b\"}",
+      "expected_sha256": "sha256:9f5ca804d15761ea10c002924c46e9de1b88615d1abec1729fd051a6f2d71b3a"
+    },
+    {
+      "name": "escape-c0-lowercase-hex",
+      "reason": "C0 控制字符十六进制必须小写且四位对齐",
+      "spec": "§6.1",
+      "input_raw": "{\"a\":\"\\u0000\\u0001\\u001F\"}",
+      "expected_canonical": "{\"a\":\"\\u0000\\u0001\\u001f\"}",
+      "expected_sha256": "sha256:1f05a2ac51701f3fc5ff7624805ff70ab48a9893d90772b39f9c9559f3bbba31"
+    },
+    {
+      "name": "escape-solidus-forbidden",
+      "reason": "'/' 允许写作 \\\\/ ，本规范禁止",
+      "spec": "§6.2",
+      "input_raw": "{\"a\":\"a\\/b\"}",
+      "expected_canonical": "{\"a\":\"a/b\"}",
+      "expected_sha256": "sha256:6af97e068868f1784ed86718bb0fe550e9454dee6b0493ac5f49700b0a13fc50"
+    },
+    {
+      "name": "escape-html-chars-forbidden",
+      "reason": "Go encoding/json 默认对 < > & 做 HTML 转义，必须关掉",
+      "spec": "§6.3",
+      "input_raw": "{\"a\":\"<>&\"}",
+      "expected_canonical": "{\"a\":\"<>&\"}",
+      "expected_sha256": "sha256:604b1254c82e153f62d72e94cdd35c6c5e488d4b0eca9a6b1ecb029f89a0139b"
+    },
+    {
+      "name": "escape-non-ascii-chinese",
+      "reason": "Python json.dumps 默认 ensure_ascii=True 会把中文变成 \\\\uXXXX",
+      "spec": "§6.3",
+      "input_raw": "{\"a\":\"\\u4e2d\\u6587\"}",
+      "expected_canonical": "{\"a\":\"中文\"}",
+      "expected_sha256": "sha256:b4c40dd74d50db89331341b5df0fc94978398f6f4784ae16e5720ecf046368e5"
+    },
+    {
+      "name": "escape-emoji-literal",
+      "reason": "BMP 外字符原样输出为 4 字节 UTF-8",
+      "spec": "§6.2",
+      "input_raw": "{\"a\":\"\\ud83d\\ude00\"}",
+      "expected_canonical": "{\"a\":\"😀\"}",
+      "expected_sha256": "sha256:8da70d6db48a3dc32fa9526602b4970d2eb551ffbbb8c497d97e4cb24f637d04"
+    },
+    {
+      "name": "escape-surrogate-pair-decoded",
+      "reason": "\\\\uD83D\\\\uDE00 必须先合成 U+1F600 再原样输出",
+      "spec": "§6.2",
+      "input_raw": "{\"a\":\"x\\ud83d\\ude00y\"}",
+      "expected_canonical": "{\"a\":\"x😀y\"}",
+      "expected_sha256": "sha256:58dfff71b394b68282fac2d548748c33ad1ff151d940c7f23c4136187c491679"
+    },
+    {
+      "name": "escape-del-u007f",
+      "reason": "U+007F 不在 C0 区间，禁止转义；多数实现会误转",
+      "spec": "§6.2",
+      "input_raw": "{\"a\":\"\\u007f\"}",
+      "expected_canonical": "{\"a\":\"\"}",
+      "expected_sha256": "sha256:599df87d312c1247f328cf89d9fbd469522aa6424298636df84ef7a4985dd6bb"
+    },
+    {
+      "name": "escape-nbsp-zwsp",
+      "reason": "不可见非 ASCII 空白也是内容，不得归一或剔除",
+      "spec": "§6.2",
+      "input_raw": "{\"a\":\"\\u00a0\\u200b\"}",
+      "expected_canonical": "{\"a\":\" ​\"}",
+      "expected_sha256": "sha256:73524f8877130cdfffaa837b4f4ea8f9c7ee7e3549e5ff7e0513b21555a785cf"
+    },
+    {
+      "name": "escape-quote-backslash-adjacent",
+      "reason": "引号与反斜杠相邻，测试转义不串位",
+      "spec": "§6.1",
+      "input_raw": "{\"a\":\"\\\"\\\\\\\"\"}",
+      "expected_canonical": "{\"a\":\"\\\"\\\\\\\"\"}",
+      "expected_sha256": "sha256:4ca4a2ca120fbef555ea20c05bc35eefae9b6c17c12287501ef97c06e32a7387"
+    },
+    {
+      "name": "escape-in-key-name",
+      "reason": "转义规则对成员名与值一致适用",
+      "spec": "§6.1",
+      "input_raw": "{\"a\\nb\":1}",
+      "expected_canonical": "{\"a\\nb\":1}",
+      "expected_sha256": "sha256:aaf0f235accbde6e499c72edf426c3b82335246a71bd1b45898e4bdd0a2f5df7"
+    },
+    {
+      "name": "whitespace-stripped",
+      "reason": "Python json.dumps 默认 separators 带空格；输出禁止任何非结构空白",
+      "spec": "§4.2 / §6.3",
+      "input_raw": "{\n  \"b\" : 1,\n  \"a\" : [ 1, 2 ]\n}",
+      "expected_canonical": "{\"a\":[1,2],\"b\":1}",
+      "expected_sha256": "sha256:94a786c3662bc7beeb598efa7d8cb58d7bea25d6c275ea9785a0230ff1f8c2ba"
+    }
+  ]
+}

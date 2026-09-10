@@ -1,0 +1,88 @@
+{
+  "category": "empty-and-null",
+  "spec": "docs/specs/crypto/canonicalization.md §8",
+  "description": "空值：null 保留、空容器保留、数组顺序保留",
+  "vector_count": 10,
+  "vectors": [
+    {
+      "name": "null-preserved",
+      "reason": "禁止剔除值为 null 的成员",
+      "spec": "§8.1",
+      "input_raw": "{\"b\":null,\"a\":1}",
+      "expected_canonical": "{\"a\":1,\"b\":null}",
+      "expected_sha256": "sha256:46e0ff59f6164548317489fbea1133a48f7a83c325c3535e44559c9619afb76b"
+    },
+    {
+      "name": "null-absent-counterpart",
+      "reason": "与 null-preserved 成对：缺省 != null，哈希必须不同",
+      "spec": "§8.2",
+      "input_raw": "{\"a\":1}",
+      "expected_canonical": "{\"a\":1}",
+      "expected_sha256": "sha256:015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862"
+    },
+    {
+      "name": "empty-containers-preserved",
+      "reason": "[] 与 {} 禁止剔除（Go omitempty 会剔）",
+      "spec": "§8.3 / §8.5",
+      "input_raw": "{\"a\":[],\"b\":{}}",
+      "expected_canonical": "{\"a\":[],\"b\":{}}",
+      "expected_sha256": "sha256:9959f7ea5ff37e0cf81634a894845a335eb6e26fbad0877944e9bc009b4f0644"
+    },
+    {
+      "name": "empty-top-level-object",
+      "reason": "空顶层 object 是合法输入",
+      "spec": "§8.3",
+      "input_raw": "{}",
+      "expected_canonical": "{}",
+      "expected_sha256": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "name": "empty-string-value",
+      "reason": "空字符串值禁止剔除（Go omitempty 会剔）",
+      "spec": "§8.5",
+      "input_raw": "{\"a\":\"\"}",
+      "expected_canonical": "{\"a\":\"\"}",
+      "expected_sha256": "sha256:258555fe010df3da34b3920945d0fbc59cebbcff1878bfc2e9206f0f495d81b9"
+    },
+    {
+      "name": "zero-value-preserved",
+      "reason": "整数零与 false 禁止剔除（Go omitempty 会剔）",
+      "spec": "§8.5",
+      "input_raw": "{\"a\":0,\"b\":false}",
+      "expected_canonical": "{\"a\":0,\"b\":false}",
+      "expected_sha256": "sha256:52085979d646cc38e44911756ead618224dfbd14592ccc80b7e2ef8e91663e07"
+    },
+    {
+      "name": "array-order-and-duplicates",
+      "reason": "数组禁止排序、禁止去重",
+      "spec": "§8.4",
+      "input_raw": "{\"a\":[3,1,2,1]}",
+      "expected_canonical": "{\"a\":[3,1,2,1]}",
+      "expected_sha256": "sha256:c2a4f486a60969cc73e2beef3895bb006fc6d1240e84e0281adabd93362f3ad4"
+    },
+    {
+      "name": "array-mixed-types",
+      "reason": "异质数组元素全部保留",
+      "spec": "§8.4",
+      "input_raw": "{\"a\":[null,0,\"\",false,[],{}]}",
+      "expected_canonical": "{\"a\":[null,0,\"\",false,[],{}]}",
+      "expected_sha256": "sha256:86bfeaef0e57b623a566a89e9ff71fd4c9e989dc9284f3bd67cbd084a026db5a"
+    },
+    {
+      "name": "null-inside-array",
+      "reason": "数组内 null 禁止压缩",
+      "spec": "§8.1 / §8.4",
+      "input_raw": "{\"a\":[null,null]}",
+      "expected_canonical": "{\"a\":[null,null]}",
+      "expected_sha256": "sha256:104a503474049e64093b2686130539530b2e9f48b4df3c89d252104165d467c0"
+    },
+    {
+      "name": "booleans",
+      "reason": "true / false 小写字面量",
+      "spec": "§4.2",
+      "input_raw": "{\"b\":true,\"a\":false}",
+      "expected_canonical": "{\"a\":false,\"b\":true}",
+      "expected_sha256": "sha256:fa59f59e6d51fd60bca1fdde5b90378aac933deaba6ca6a1211cecc86cebc166"
+    }
+  ]
+}

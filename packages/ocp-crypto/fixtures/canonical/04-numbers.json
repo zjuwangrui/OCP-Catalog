@@ -1,0 +1,166 @@
+{
+  "category": "numbers",
+  "spec": "docs/specs/crypto/canonicalization.md §7",
+  "description": "数字：Level 1 整数子集与 2^53-1 边界",
+  "vector_count": 21,
+  "vectors": [
+    {
+      "name": "number-zero",
+      "reason": "0 本身允许前导零以外的唯一形式",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":0}",
+      "expected_canonical": "{\"a\":0}",
+      "expected_sha256": "sha256:45b619e97b5d9b029af4522e9ffb02fa99ff2bf226c82ee22a7cc10269a557e8"
+    },
+    {
+      "name": "number-negative-zero-int",
+      "reason": "-0 必须输出 0",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":-0}",
+      "expected_canonical": "{\"a\":0}",
+      "expected_sha256": "sha256:45b619e97b5d9b029af4522e9ffb02fa99ff2bf226c82ee22a7cc10269a557e8"
+    },
+    {
+      "name": "number-negative-zero-float",
+      "reason": "-0.0 同样必须输出 0，不得为 -0",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":-0.0}",
+      "expected_canonical": "{\"a\":0}",
+      "expected_sha256": "sha256:45b619e97b5d9b029af4522e9ffb02fa99ff2bf226c82ee22a7cc10269a557e8"
+    },
+    {
+      "name": "number-one-point-zero",
+      "reason": "1.0 数学值为整数，合规且输出 1",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":1.0}",
+      "expected_canonical": "{\"a\":1}",
+      "expected_sha256": "sha256:015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862"
+    },
+    {
+      "name": "number-trailing-zeros",
+      "reason": "1.000 归一为 1",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":1.000}",
+      "expected_canonical": "{\"a\":1}",
+      "expected_sha256": "sha256:015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862"
+    },
+    {
+      "name": "number-exponent-positive",
+      "reason": "1e2 整数值，输出禁止指数形式",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":1e2}",
+      "expected_canonical": "{\"a\":100}",
+      "expected_sha256": "sha256:f0015e5829a1311e9b61ef10cb18c6e783cc512e3989d3679f7622425a244a72"
+    },
+    {
+      "name": "number-exponent-signed-caps",
+      "reason": "1E+3 大写 E 与显式 + 号均需归一",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":1E+3}",
+      "expected_canonical": "{\"a\":1000}",
+      "expected_sha256": "sha256:ac51767992e3cb0372bd2e1f602ac58babccc85d03871731790d0950e2b75e51"
+    },
+    {
+      "name": "number-exponent-fraction-integral",
+      "reason": "2.5e1 = 25，尾数带小数但数学值为整数",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":2.5e1}",
+      "expected_canonical": "{\"a\":25}",
+      "expected_sha256": "sha256:97b3d9cc2ffdcc8cde696663d9dc1aeec4e0672b080df66571a0414eaec9cb31"
+    },
+    {
+      "name": "number-negative",
+      "reason": "负整数保留单个前导负号",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":-42}",
+      "expected_canonical": "{\"a\":-42}",
+      "expected_sha256": "sha256:0c809a3f1cd2add72903578157eb7625042a4734f47c02ce0e07cd77c27eb5d6"
+    },
+    {
+      "name": "number-max-safe",
+      "reason": "2^53-1 上界内侧，必须接受",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":9007199254740991}",
+      "expected_canonical": "{\"a\":9007199254740991}",
+      "expected_sha256": "sha256:a9af4cfcb37cc6c571d3b396a59af5f6e42c8ea43d06cafc89705e3fb495649d"
+    },
+    {
+      "name": "number-min-safe",
+      "reason": "-(2^53-1) 下界内侧，必须接受",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":-9007199254740991}",
+      "expected_canonical": "{\"a\":-9007199254740991}",
+      "expected_sha256": "sha256:2bbb858ae01f3f721370e806b33be7dd3ab381006bb3409ae01d29f8e326a8c2"
+    },
+    {
+      "name": "reject-number-2-pow-53",
+      "reason": "2^53 越界一位：上界必须是闭区间",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":9007199254740992}",
+      "expected_error": "number_out_of_range"
+    },
+    {
+      "name": "reject-number-min-2-pow-53",
+      "reason": "-(2^53) 负向越界",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":-9007199254740992}",
+      "expected_error": "number_out_of_range"
+    },
+    {
+      "name": "reject-number-int64-range",
+      "reason": "规范 §7.3 原例：Go int64 能精确表示、JS 不能",
+      "spec": "§7.3",
+      "input_raw": "{\"a\":1152921504606846976}",
+      "expected_error": "number_out_of_range"
+    },
+    {
+      "name": "reject-number-float-overflow",
+      "reason": "1e400 字面合法但超双精度范围，解析得 Infinity",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":1e400}",
+      "expected_error": "number_out_of_range"
+    },
+    {
+      "name": "reject-number-half",
+      "reason": "0.5 数学值非整数，Level 1 拒绝",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":0.5}",
+      "expected_error": "non_integer_number"
+    },
+    {
+      "name": "reject-number-price-like",
+      "reason": "真实金额形态：浮点不应承载金额（§7.4）",
+      "spec": "§7.4",
+      "input_raw": "{\"amount\":129.99}",
+      "expected_error": "non_integer_number"
+    },
+    {
+      "name": "reject-number-nan",
+      "reason": "NaN 不是合法 JSON；Python json.dumps 默认会静默写出",
+      "spec": "§7.5",
+      "input_raw": "{\"a\":NaN}",
+      "expected_error": "non_finite_number"
+    },
+    {
+      "name": "reject-number-infinity",
+      "reason": "Infinity 不是合法 JSON",
+      "spec": "§7.5",
+      "input_raw": "{\"a\":Infinity}",
+      "expected_error": "non_finite_number"
+    },
+    {
+      "name": "reject-number-negative-infinity",
+      "reason": "-Infinity 不是合法 JSON",
+      "spec": "§7.5",
+      "input_raw": "{\"a\":-Infinity}",
+      "expected_error": "non_finite_number"
+    },
+    {
+      "name": "reject-number-nested",
+      "reason": "数字校验必须递归到任意深度",
+      "spec": "§7.2",
+      "input_raw": "{\"a\":{\"b\":[1,{\"c\":0.5}]}}",
+      "expected_error": "non_integer_number"
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "category": "rejection",
+  "spec": "docs/specs/crypto/canonicalization.md §4.2 / §5.4 / §6.4",
+  "description": "拒绝类：重复键、孤立代理项、顶层非 object",
+  "vector_count": 14,
+  "vectors": [
+    {
+      "name": "reject-duplicate-key",
+      "reason": "标准库解析器静默去重，必须在解析阶段检测",
+      "spec": "§5.4",
+      "input_raw": "{\"a\":1,\"a\":2}",
+      "expected_error": "duplicate_key"
+    },
+    {
+      "name": "reject-duplicate-key-signature-bypass",
+      "reason": "规范 §5.4 的签名旁路原例",
+      "spec": "§5.4",
+      "input_raw": "{\"amount\":1,\"amount\":9999}",
+      "expected_error": "duplicate_key"
+    },
+    {
+      "name": "reject-duplicate-key-nested",
+      "reason": "重复键检测必须递归到嵌套层",
+      "spec": "§5.4",
+      "input_raw": "{\"x\":{\"a\":1,\"a\":2}}",
+      "expected_error": "duplicate_key"
+    },
+    {
+      "name": "reject-duplicate-key-in-array-element",
+      "reason": "数组元素内的 object 同样适用",
+      "spec": "§5.4",
+      "input_raw": "{\"x\":[{\"a\":1,\"a\":2}]}",
+      "expected_error": "duplicate_key"
+    },
+    {
+      "name": "reject-duplicate-key-escaped-form",
+      "reason": "\"a\" 与 \"\\\\u0061\" 解码后同名，按字节比较会漏报",
+      "spec": "§5.4",
+      "input_raw": "{\"a\":1,\"\\u0061\":2}",
+      "expected_error": "duplicate_key"
+    },
+    {
+      "name": "reject-lone-high-surrogate",
+      "reason": "U+D800 未成对，无合法 UTF-8 编码",
+      "spec": "§6.4",
+      "input_raw": "{\"a\":\"\\ud800\"}",
+      "expected_error": "lone_surrogate"
+    },
+    {
+      "name": "reject-lone-low-surrogate",
+      "reason": "U+DC00 未成对",
+      "spec": "§6.4",
+      "input_raw": "{\"a\":\"\\udc00\"}",
+      "expected_error": "lone_surrogate"
+    },
+    {
+      "name": "reject-lone-surrogate-reversed-pair",
+      "reason": "低在前高在后不构成合法代理对",
+      "spec": "§6.4",
+      "input_raw": "{\"a\":\"\\udc00\\ud800\"}",
+      "expected_error": "lone_surrogate"
+    },
+    {
+      "name": "reject-lone-surrogate-in-key",
+      "reason": "成员名同样适用",
+      "spec": "§6.4",
+      "input_raw": "{\"\\ud800\":1}",
+      "expected_error": "lone_surrogate"
+    },
+    {
+      "name": "reject-top-level-array",
+      "reason": "顶层必须是 object",
+      "spec": "§4.2",
+      "input_raw": "[1,2]",
+      "expected_error": "top_level_not_object"
+    },
+    {
+      "name": "reject-top-level-string",
+      "reason": "顶层必须是 object",
+      "spec": "§4.2",
+      "input_raw": "\"x\"",
+      "expected_error": "top_level_not_object"
+    },
+    {
+      "name": "reject-top-level-number",
+      "reason": "顶层必须是 object",
+      "spec": "§4.2",
+      "input_raw": "5",
+      "expected_error": "top_level_not_object"
+    },
+    {
+      "name": "reject-top-level-null",
+      "reason": "顶层必须是 object",
+      "spec": "§4.2",
+      "input_raw": "null",
+      "expected_error": "top_level_not_object"
+    },
+    {
+      "name": "reject-top-level-true",
+      "reason": "顶层必须是 object",
+      "spec": "§4.2",
+      "input_raw": "true",
+      "expected_error": "top_level_not_object"
+    }
+  ]
+}
