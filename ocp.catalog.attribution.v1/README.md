@@ -53,7 +53,7 @@ Schema 只能约束 `hop` 在 `[1, 8]`，不能约束它与位置的对应关系
 第 N 跳签的是：
 
 ```text
-OCP-JCS-v1({ "chain": [unsigned(1..N)], "core": <core claims> })
+OCP-JCS-v1({ "chain": [unsigned(1..N)], "core": core_claims(token) })
 ```
 
 `unsigned(node)` = 该节点删去 `signature` 后的其余全部字段；`core claims` = token 去掉 `complete` 与 `chain`。

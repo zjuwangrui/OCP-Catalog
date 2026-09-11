@@ -88,7 +88,7 @@
 > **T1 交棒给 T4 的三条**：以下规则**无法由 JSON Schema 或 Zod 表达**，必须在验证器里另行实现，漏掉任一条都会产生「schema 完全合法但可伪造」的凭证——
 > ① `chain[i].hop === i + 1` 且首跳 `role === "origin"`、`catalog_id` 链内不重复（防重排与环路）；
 > ② 顶层 `complete` 必须按各跳 `chain_complete` 取 AND **重算**，禁止采信；
-> ③ 签名输入是 `{ chain: [unsigned(1..N)], core: <core claims> }` 的 canonical 字节，**不是整个 token**。
+> ③ 签名输入是 `{ chain: [unsigned(1..N)], core: core_claims(token) }` 的 canonical 字节，**不是整个 token**。
 > 详见 [归因规范](../specs/attribution/v1.md) §5。
 
 ### 第 2 周（09-21 ~ 09-25）· 链路闭环与核销

@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(lark-cli auth *)"
+      "Bash(lark-cli auth *)",
+      "Bash(python -)",
+      "Bash(rm _patch.log)"
     ]
   }
 }
