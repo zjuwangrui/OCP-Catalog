@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocp.dev/schema/ocp.catalog.attribution.v1/attribution-chain-node.schema.json",
+  "title": "AttributionChainNode",
+  "description": "归因链中的一跳。每跳对「截至本跳的链前缀 + token 的 core claims」签名，见 attribution/v1.md §5.2。",
+  "type": "object",
+  "required": [
+    "catalog_id",
+    "hop",
+    "role",
+    "settles",
+    "chain_complete",
+    "alg",
+    "kid",
+    "signed_at",
+    "signature"
+  ],
+  "properties": {
+    "catalog_id": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "本跳目录节点标识，对应 schain 的 asi。既是结算主体，也是 JWKS 发现的输入。"
+    },
+    "hop": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8,
+      "description": "1 起的跳序号。必须等于其在 chain 数组中的下标 + 1。"
+    },
+    "role": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/ChainNodeRole"
+    },
+    "settles": {
+      "type": "boolean",
+      "description": "本跳是否参与资金流，对应 schain 的 hp。false 表示纯转发，不主张分账。"
+    },
+    "chain_complete": {
+      "type": "boolean",
+      "description": "本跳声明：截至本跳，链中不存在未记录的上游跳。顶层 complete 由全部节点该值取 AND 重算。"
+    },
+    "alg": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/SignatureAlgorithm"
+    },
+    "kid": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/KeyId"
+    },
+    "signed_at": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Timestamp",
+      "description": "本跳签名时刻。last-touch 裁决取最后一跳的该值。"
+    },
+    "signature": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Signature",
+      "description": "对 §5.2 签名输入的 Ed25519 签名。计算签名输入时本字段被移除。"
+    }
+  },
+  "additionalProperties": false
+}

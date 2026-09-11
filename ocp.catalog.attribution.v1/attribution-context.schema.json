@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocp.dev/schema/ocp.catalog.attribution.v1/attribution-context.schema.json",
+  "title": "AttributionContext",
+  "description": "代理或中继节点在 resolve 请求中提供的归因输入。整体可选——不含该对象的 resolve 请求行为与本协议引入前完全一致。见 attribution/v1.md §10.1。",
+  "type": "object",
+  "required": ["agent_id"],
+  "properties": {
+    "agent_id": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "节点无法从请求的其他部分推断结算主体，必须由请求方声明。"
+    },
+    "agent_identity_source": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/AgentIdentitySource"
+    },
+    "upstream_token": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/attribution-token.schema.json",
+      "description": "中继场景下上游节点签发的 token。有它才有多跳；没有它，节点按 origin 签发新链。"
+    }
+  },
+  "additionalProperties": false
+}

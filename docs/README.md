@@ -18,10 +18,17 @@ reference implementation, see the `docs/` directory of the instances repo.
 
 ## Directory Map
 
-- `specs/`: stable protocol specifications (Registration v1, Handshake v1).
+- `specs/`: protocol specifications.
+  - `specs/registration/v1.md` — **stable**
+  - `specs/handshake/v1.md` — **stable**
+  - `specs/crypto/canonicalization.md` — **draft**, not yet implemented
+  - `specs/attribution/v1.md` — **draft**, not yet implemented
+- `proposals/`: in-flight design proposals and implementation plans. Not normative;
+  a proposal becomes normative only once it lands under `specs/`.
 
 The machine-readable JSON Schemas for these protocols live at the repository root
-in `ocp.catalog.registration.v1/` and `ocp.catalog.handshake.v1/`.
+in `ocp.catalog.registration.v1/`, `ocp.catalog.handshake.v1/`, and
+`ocp.catalog.attribution.v1/`.
 
 ## Protocol Notes
 

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocp.dev/schema/ocp.catalog.attribution.v1/attribution-token.schema.json",
+  "title": "AttributionToken",
+  "description": "目录节点在 resolve 时签发的归因凭证。token 本身无独立签名字段——签名全部位于 chain 内，最后一跳的签名覆盖 core claims 与全部链前缀。见 attribution/v1.md §4。",
+  "type": "object",
+  "required": [
+    "ocp_version",
+    "kind",
+    "jti",
+    "iss",
+    "iat",
+    "exp",
+    "agent_id",
+    "entry_id",
+    "object_id",
+    "provider_id",
+    "purpose",
+    "complete",
+    "chain"
+  ],
+  "properties": {
+    "ocp_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "kind": {
+      "type": "string",
+      "const": "AttributionToken"
+    },
+    "jti": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "凭证唯一标识，防重放的唯一依据。同一 jti 出现在不同 order_id 上即为重放。"
+    },
+    "iss": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "签发节点的 catalog_id。验证方据此定位 JWKS。"
+    },
+    "iat": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Timestamp"
+    },
+    "exp": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Timestamp",
+      "description": "有效期上界。归因窗口据此收敛，泄露的凭证据此失效。"
+    },
+    "agent_id": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "代理侧结算主体。"
+    },
+    "agent_identity_source": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/AgentIdentitySource"
+    },
+    "entry_id": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "目录条目标识，用于争议复盘时回到「当时送出去的是哪条」。"
+    },
+    "object_id": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "Provider 侧对象标识。商户据此把凭证与订单行对上。"
+    },
+    "provider_id": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "应付方。商户据此在验签前先筛掉不属于自己的凭证。"
+    },
+    "purpose": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/SettlementPurpose"
+    },
+    "complete": {
+      "type": "boolean",
+      "description": "非权威的便利字段。验证方必须按 §5.3 重算，不一致即 complete_mismatch。"
+    },
+    "chain": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "description": "逐跳署名与签名。上限 8 是攻击面控制，防止无界次数的签名验算。",
+      "items": {
+        "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/attribution-chain-node.schema.json"
+      }
+    }
+  },
+  "additionalProperties": false
+}

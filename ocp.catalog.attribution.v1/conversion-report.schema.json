@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocp.dev/schema/ocp.catalog.attribution.v1/conversion-report.schema.json",
+  "title": "ConversionReport",
+  "description": "商户在成交时回报的转化事实。v1 不对本对象签名——回报通道完整性交给传输层，内嵌的 token 才是被密码学验证的部分。见 attribution/v1.md §6。",
+  "type": "object",
+  "required": [
+    "ocp_version",
+    "kind",
+    "report_id",
+    "order_id",
+    "provider_id",
+    "attribution_token",
+    "amount_minor",
+    "currency",
+    "occurred_at",
+    "status"
+  ],
+  "properties": {
+    "ocp_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ConversionReport"
+    },
+    "report_id": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "回报本身的幂等键，用于区分网络重试与新回报。"
+    },
+    "order_id": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "商户订单标识，结算去重的唯一依据，对应联盟营销的 txn_id。一笔订单可有多次状态回报。"
+    },
+    "provider_id": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Identifier",
+      "description": "回报方，必须等于 attribution_token.provider_id，否则 provider_mismatch。"
+    },
+    "attribution_token": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/attribution-token.schema.json",
+      "description": "内嵌完整凭证，使回报自包含：第三方拿到一条回报即可离线复核。"
+    },
+    "amount_minor": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/AmountMinor"
+    },
+    "currency": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/CurrencyCode"
+    },
+    "occurred_at": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/Timestamp",
+      "description": "成交时刻，不是回报时刻。归因窗口检查必须用成交时刻，因为回报可延迟。"
+    },
+    "status": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json#/$defs/ConversionStatus"
+    }
+  },
+  "additionalProperties": false
+}

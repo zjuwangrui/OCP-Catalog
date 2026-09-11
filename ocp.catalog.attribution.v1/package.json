@@ -1,0 +1,10 @@
+{
+  "name": "ocp.catalog.attribution.v1",
+  "version": "0.1.0",
+  "description": "OCP Catalog Attribution v1 schema package: signed, multi-hop commercial attribution tokens and conversion reports.",
+  "type": "module",
+  "files": [
+    "*.schema.json",
+    "README.md"
+  ]
+}

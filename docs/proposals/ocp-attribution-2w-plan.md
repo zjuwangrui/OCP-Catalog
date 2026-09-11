@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **待启动** |
+| 状态 | **进行中**——T1 已完成（2026-09-15） |
 | 版本 | v1.0 |
 | 日期 | 2026-09-11 |
 | 起止 | **2026-09-14（周一）– 2026-09-25（周五）**，10 个工作日 |
@@ -79,11 +79,17 @@
 
 | 小任务 | 天 | 内容 | 完成判据 |
 |---|---|---|---|
-| **T1** | 周一二 | ① `docs/specs/attribution/v1.md`：claims 定稿、链结构、裁决规则、失败语义<br>② `ocp.catalog.attribution.v1/` JSON Schema<br>③ Zod 零破坏挂载：`actionBindingSchema.attribution`、`resolveRequestSchema.attribution_context`（均可选） | claims **逐条写明存在理由**，无「以防万一」字段；**不含 attribution 的旧 payload 必须仍然通过校验** |
+| **T1** ✅ | 周一二 | ① `docs/specs/attribution/v1.md`：claims 定稿、链结构、裁决规则、失败语义<br>② `ocp.catalog.attribution.v1/` JSON Schema<br>③ Zod 零破坏挂载：`actionBindingSchema.attribution`、`resolveRequestSchema.attribution_context`（均可选） | claims **逐条写明存在理由**，无「以防万一」字段；**不含 attribution 的旧 payload 必须仍然通过校验** |
 | **T2** | 周三四 | ① `packages/ocp-crypto` 包骨架 + TS `canonicalize()`（W1-T3 顺延进来）<br>② Ed25519 keygen / sign / verify<br>③ **补 `wellKnownCatalogDiscoverySchema` 进 `ocp-schema` + `jwks_url`**（历史欠账：该响应体目前无任何 schema）<br>④ JWKS 加载、`kid` 解析、TTL 缓存 | 75 条向量全绿；**三条错误路径有测试**：`kid` 未命中 / JWKS 过期 / 算法不支持 |
 | **T3** | 周五 | 目录节点在 `purpose: "checkout"` 的 resolve 上签发 token，嵌入 `action_binding.attribution` | resolve 响应含 attribution 且 schema 校验通过；`curl` 取到公钥后**离线**验通 |
 
 **周五演示**：起节点 → resolve 一个对象 → 拿到带签名的归因凭证 → 断网状态下用公钥验通。
+
+> **T1 交棒给 T4 的三条**：以下规则**无法由 JSON Schema 或 Zod 表达**，必须在验证器里另行实现，漏掉任一条都会产生「schema 完全合法但可伪造」的凭证——
+> ① `chain[i].hop === i + 1` 且首跳 `role === "origin"`、`catalog_id` 链内不重复（防重排与环路）；
+> ② 顶层 `complete` 必须按各跳 `chain_complete` 取 AND **重算**，禁止采信；
+> ③ 签名输入是 `{ chain: [unsigned(1..N)], core: <core claims> }` 的 canonical 字节，**不是整个 token**。
+> 详见 [归因规范](../specs/attribution/v1.md) §5。
 
 ### 第 2 周（09-21 ~ 09-25）· 链路闭环与核销
 

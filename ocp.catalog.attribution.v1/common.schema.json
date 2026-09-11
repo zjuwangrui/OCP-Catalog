@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocp.dev/schema/ocp.catalog.attribution.v1/common.schema.json",
+  "$defs": {
+    "Identifier": {
+      "type": "string",
+      "minLength": 1
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "SignatureAlgorithm": {
+      "type": "string",
+      "enum": ["EdDSA"],
+      "description": "v1 只接受 Ed25519。算法值参与签名材料，防止算法混淆攻击。"
+    },
+    "KeyId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "JWKS 中的 kid，用于在节点轮换密钥后取到正确的公钥。"
+    },
+    "Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "description": "base64url（无填充）编码的 Ed25519 签名。"
+    },
+    "AmountMinor": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "最小货币单位整数。上界即 canonicalization.md §7 的安全整数上界；禁止浮点。"
+    },
+    "CurrencyCode": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母大写代码。"
+    },
+    "AgentIdentitySource": {
+      "type": "string",
+      "enum": ["ocp", "external"],
+      "default": "ocp",
+      "description": "agent_id 的标识空间来源。external 预留给 Visa TAP / AP2 等外部注册表对齐。"
+    },
+    "SettlementPurpose": {
+      "type": "string",
+      "enum": ["view", "checkout", "contact", "workflow"],
+      "description": "复制自 ResolveRequest.purpose。只有 checkout 可进入结算裁决。"
+    },
+    "ChainNodeRole": {
+      "type": "string",
+      "enum": ["origin", "relay"],
+      "description": "origin 为签发首跳，relay 为转发跳。"
+    },
+    "ConversionStatus": {
+      "type": "string",
+      "enum": ["confirmed", "pending", "refunded", "cancelled"]
+    },
+    "AttributionErrorCode": {
+      "type": "string",
+      "enum": [
+        "chain_broken",
+        "complete_mismatch",
+        "signature_invalid",
+        "key_not_found",
+        "alg_not_supported",
+        "token_expired",
+        "token_not_yet_valid",
+        "replayed_jti",
+        "duplicate_order",
+        "provider_mismatch",
+        "purpose_not_settleable"
+      ],
+      "description": "验证失败的稳定取值，见 attribution/v1.md §8。实现必须对同一坏凭证给出同一个码。"
+    }
+  }
+}
