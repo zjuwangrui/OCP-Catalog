@@ -4,6 +4,7 @@ import {
   catalogManifestSchema,
   catalogQueryResultSchema,
   resolvableReferenceSchema,
+  wellKnownCatalogDiscoverySchema,
 } from '@ocp-catalog/ocp-schema';
 import { handle } from './server';
 
@@ -34,11 +35,14 @@ describe('minimal TypeScript OCP Catalog Node', () => {
     expect(parsed.status).toBe('healthy');
   });
 
-  test('well-known discovery points at the OCP endpoints', async () => {
-    const disco: any = await body(await get('/.well-known/ocp-catalog'));
-    expect(disco.kind).toBe('WellKnownCatalogDiscovery');
-    expect(disco.query_url).toContain('/ocp/query');
-    expect(disco.resolve_url).toContain('/ocp/resolve');
+  test('well-known discovery conforms to wellKnownCatalogDiscoverySchema', async () => {
+    const parsed = wellKnownCatalogDiscoverySchema.parse(await body(await get('/.well-known/ocp-catalog')));
+    expect(parsed.query_url).toContain('/ocp/query');
+    expect(parsed.resolve_url).toContain('/ocp/resolve');
+    // This node does not sign anything yet, so it advertises no key set. A node
+    // that issues attribution tokens must publish `jwks_url` or no merchant can
+    // verify them.
+    expect(parsed.jwks_url).toBe(undefined);
   });
 
   test('query conforms to catalogQueryResultSchema and filters by keyword', async () => {

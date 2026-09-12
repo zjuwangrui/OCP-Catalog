@@ -21,8 +21,12 @@ reference implementation, see the `docs/` directory of the instances repo.
 - `specs/`: protocol specifications.
   - `specs/registration/v1.md` — **stable**
   - `specs/handshake/v1.md` — **stable**
-  - `specs/crypto/canonicalization.md` — **draft**, not yet implemented
-  - `specs/attribution/v1.md` — **draft**, not yet implemented
+  - `specs/crypto/canonicalization.md` — **draft**; TypeScript implementation in
+    [`packages/ocp-crypto`](../packages/ocp-crypto/README.md), all 75 conformance
+    vectors green. Python / Go not implemented, so cross-language byte agreement
+    is asserted by the vectors only, not yet demonstrated.
+  - `specs/attribution/v1.md` — **draft**; data model implemented (schemas + Zod),
+    token issuance and chain verification not yet implemented
 - `proposals/`: in-flight design proposals and implementation plans. Not normative;
   a proposal becomes normative only once it lands under `specs/`.
 

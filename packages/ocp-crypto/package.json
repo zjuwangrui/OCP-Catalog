@@ -1,0 +1,40 @@
+{
+  "name": "@ocp-catalog/ocp-crypto",
+  "version": "0.2.1",
+  "description": "Canonical JSON (OCP-JCS v1), Ed25519 signing, and JWKS resolution for the Open Commerce Protocol (OCP) Catalog.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Open-Commerce-Protocol/OCP-Catalog.git",
+    "directory": "packages/ocp-crypto"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src/index.ts",
+    "src/canonical.ts",
+    "src/errors.ts",
+    "src/jwks.ts",
+    "src/keys.ts",
+    "fixtures/canonical"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "bun ../../scripts/build-protocol-package.ts",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test --pass-with-no-tests"
+  }
+}

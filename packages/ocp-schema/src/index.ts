@@ -320,6 +320,44 @@ export const federationProfileSchema = z.object({
   },
 });
 
+/**
+ * `GET /.well-known/ocp-catalog` — the discovery document.
+ *
+ * This response has been served by every example and documented in every
+ * getting-started guide since the protocol existed, but had no schema until
+ * now, so `examples/typescript/src/server.test.ts` could only assert two of its
+ * fields by hand while claiming to parse "every response" through a schema.
+ *
+ * Deliberately not `.strict()`, matching `catalogManifestSchema`: nodes in the
+ * wild already serve this document and an unknown-key rejection here would be a
+ * breaking change to a live endpoint.
+ *
+ * Only `manifest_url` is required among the URLs. A node that publishes just
+ * the manifest is discoverable — the rest of the endpoint truth lives in the
+ * manifest, which is the documented source of truth for capabilities.
+ */
+export const wellKnownCatalogDiscoverySchema = z.object({
+  ocp_version: ocpVersionSchema,
+  kind: z.literal('WellKnownCatalogDiscovery'),
+  catalog_id: z.string().min(1),
+  catalog_name: z.string().min(1).optional(),
+  manifest_url: z.string().url(),
+  health_url: z.string().url().optional(),
+  query_url: z.string().url().optional(),
+  resolve_url: z.string().url().optional(),
+  contracts_url: z.string().url().optional(),
+  /**
+   * JWK Set for verifying this catalog's signatures (attribution chain nodes
+   * today; signed manifests later).
+   *
+   * Optional because signing is an incremental capability and an unsigned node
+   * stays valid. But without it there is no protocol-level answer to "商户怎么
+   * 找到公钥"，and a verifier that cannot find a key cannot verify anything —
+   * see `docs/specs/attribution/v1.md` §7.1 row 4.
+   */
+  jwks_url: z.string().url().optional(),
+});
+
 export const catalogManifestSchema = z.object({
   ocp_version: ocpVersionSchema,
   kind: z.literal('CatalogManifest'),
@@ -767,6 +805,7 @@ export const inventoryPackSchema = z.object({
 }).strict();
 
 export type CatalogManifest = z.infer<typeof catalogManifestSchema>;
+export type WellKnownCatalogDiscovery = z.infer<typeof wellKnownCatalogDiscoverySchema>;
 export type CatalogDataProfile = z.infer<typeof catalogDataProfileSchema>;
 export type CatalogHealthResponse = z.infer<typeof catalogHealthResponseSchema>;
 export type CatalogHealthStatus = z.infer<typeof catalogHealthStatusSchema>;
