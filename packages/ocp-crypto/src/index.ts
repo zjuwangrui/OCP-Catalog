@@ -50,5 +50,27 @@ export type {
   JwksLoader,
 } from './jwks';
 
+export {
+  MAX_CHAIN_LENGTH,
+  attributionSigningBytes,
+  attributionSigningInput,
+  coreClaims,
+  issueOriginToken,
+  recomputeComplete,
+  signChainNode,
+  unsignedNode,
+  verifyChainNodeSignature,
+} from './attribution';
+export type {
+  AgentIdentitySource,
+  AttributionPurpose,
+  AttributionRole,
+  AttributionToken,
+  ChainNode,
+  CoreClaims,
+  IssueOriginTokenParams,
+  UnsignedChainNode,
+} from './attribution';
+
 export { CanonicalError, CryptoError, SPEC_CANONICAL_ERROR_CODES, errorCodeOf } from './errors';
 export type { CanonicalErrorCode, CryptoErrorCode } from './errors';

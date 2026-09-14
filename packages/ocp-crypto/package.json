@@ -22,6 +22,7 @@
   "files": [
     "dist",
     "src/index.ts",
+    "src/attribution.ts",
     "src/canonical.ts",
     "src/errors.ts",
     "src/jwks.ts",

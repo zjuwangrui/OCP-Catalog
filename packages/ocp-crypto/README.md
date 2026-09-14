@@ -1,12 +1,13 @@
 # @ocp-catalog/ocp-crypto
 
-OCP Catalog 的规范化、签名与密钥发现实现。三块内容：
+OCP Catalog 的规范化、签名与密钥发现实现。四块内容：
 
 | 模块 | 规范 | 内容 |
 |---|---|---|
 | `canonical.ts` | [OCP Canonical JSON v1.0](../../docs/specs/crypto/canonicalization.md) | OCP-JCS v1 规范化、`sha256:` 哈希 |
 | `keys.ts` | [归因规范 §5](../../docs/specs/attribution/v1.md) | Ed25519 生成 / 签名 / 验签、JWK 形态 |
 | `jwks.ts` | [归因规范 §7.1](../../docs/specs/attribution/v1.md) 第 4 行 | JWKS 加载、`kid` 解析、TTL 缓存 |
+| `attribution.ts` | [归因规范 §4.3 / §5.2 / §5.3](../../docs/specs/attribution/v1.md) | 核心声明、逐跳签名材料、`complete` 重算、origin token 签发 |
 
 一致性向量在 [`fixtures/canonical/`](./fixtures/canonical/README.md)（75 条），`src/canonical.test.ts` 逐条跑。
 
@@ -57,6 +58,32 @@ const jwk = await cache.getVerificationKey('cat_origin', 'kid_2026_09');
 ```
 
 `fetch` 是注入的，不是 import 的。验证器必须能离线跑（第 1 周五的演示就是「断网状态下用公钥验通」），而一个自己伸手去 `fetch` 的包，没法测它真正要紧的那几条失败路径。
+
+### 归因凭证
+
+```ts
+import { issueOriginToken, coreClaims, recomputeComplete, verifyChainNodeSignature }
+  from '@ocp-catalog/ocp-crypto';
+
+const token = issueOriginToken({
+  privateJwk, kid, catalogId: 'cat_origin',
+  agentId: 'agent_alpha', entryId, objectId, providerId,
+  purpose: 'checkout',                       // §7.1：只有 checkout 可结算
+});
+
+// 验证一跳：core 与 chain 前缀必须与签名方构造的完全一致，所以两边调同一个函数
+verifyChainNodeSignature({ jwk, core: coreClaims(token), chain: token.chain, hopIndex: 0 });
+recomputeComplete(token.chain) === token.complete;   // §5.3：必须重算，不能读
+```
+
+签名材料是 `{ chain: [unsigned(1..N)], core }`（§5.2）。两个容易写错的地方：
+
+- **第 N 跳签的是含自己在内的前缀**，不是只签前 N−1 跳。漏掉自己会让 `settles` 和 `chain_complete` 落在签名之外——而钱正好挂在这两个字段上。
+- **`coreClaims` 是「删掉 `complete` 和 `chain`」，不是「挑出想要的键」**。挑键的写法会让将来新增的可选声明悄悄掉出签名材料，于是一边签了一边没签，报出来只是一句「验签失败」。
+
+`attribution.ts` 只做**签发**和**单跳验签**——重放、过期、provider 匹配、逐跳错误定位是完整验证器的事（T4），要配着它们需要的策略状态一起写。放在这里的是签名方和验证方**必须逐字节一致**的那部分，两边调同一份代码才不会漂。多跳（relay）签发同理是 T4 的独立入口：一跳链是本节点自己起的，`chain_complete: true` 由构造保证；接在别人 token 后面的中继，靠本地信息给不出这个结论。
+
+端到端的样子见 [`examples/typescript`](../../examples/typescript/README.md)——curl 取公钥、关掉节点、离线验通。
 
 ## 三条实现决定，改之前先读理由
 

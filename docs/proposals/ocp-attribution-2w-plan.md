@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **进行中**——T1（2026-09-15）、T2（2026-09-17）已完成 |
+| 状态 | **进行中**——T1（2026-09-15）、T2（2026-09-17）、T3（2026-09-18）已完成 |
 | 版本 | v1.0 |
 | 日期 | 2026-09-11 |
 | 起止 | **2026-09-14（周一）– 2026-09-25（周五）**，10 个工作日 |
@@ -81,7 +81,7 @@
 |---|---|---|---|
 | **T1** ✅ | 周一二 | ① `docs/specs/attribution/v1.md`：claims 定稿、链结构、裁决规则、失败语义<br>② `ocp.catalog.attribution.v1/` JSON Schema<br>③ Zod 零破坏挂载：`actionBindingSchema.attribution`、`resolveRequestSchema.attribution_context`（均可选） | claims **逐条写明存在理由**，无「以防万一」字段；**不含 attribution 的旧 payload 必须仍然通过校验** |
 | **T2** ✅ | 周三四 | ① `packages/ocp-crypto` 包骨架 + TS `canonicalize()`（W1-T3 顺延进来）<br>② Ed25519 keygen / sign / verify<br>③ **补 `wellKnownCatalogDiscoverySchema` 进 `ocp-schema` + `jwks_url`**（历史欠账：该响应体目前无任何 schema）<br>④ JWKS 加载、`kid` 解析、TTL 缓存 | 75 条向量全绿；**三条错误路径有测试**：`kid` 未命中 / JWKS 过期 / 算法不支持 |
-| **T3** | 周五 | 目录节点在 `purpose: "checkout"` 的 resolve 上签发 token，嵌入 `action_binding.attribution` | resolve 响应含 attribution 且 schema 校验通过；`curl` 取到公钥后**离线**验通 |
+| **T3** ✅ | 周五 | 目录节点在 `purpose: "checkout"` 的 resolve 上签发 token，嵌入 `action_binding.attribution` | resolve 响应含 attribution 且 schema 校验通过；`curl` 取到公钥后**离线**验通 |
 
 **周五演示**：起节点 → resolve 一个对象 → 拿到带签名的归因凭证 → 断网状态下用公钥验通。
 
@@ -95,6 +95,11 @@
 > ① 签名一律走 `signCanonical` / `verifyCanonical`（值入口）或 `canonicalize`（字节入口）；**验签必须用收到的字节**，不能用 Zod `parse()` 的结果——96 处 `.default()` 会注入成员，导致每一次都验签失败（canonical 规范 §9）；
 > ② `ocp-crypto` 的 `key_not_found` / `alg_not_supported` 与归因规范 §8 同名，T4 的验证器**直接透传并补上 `hop`**，不要另起错误码；
 > ③ example server 目前**不**广告 `jwks_url`——它还没有密钥，广告一个背后没有密钥材料的地址比不广告更糟。T3 签发 token 时同步开始发布它，否则商户没有协议层的取公钥路径。
+
+> **T3 交棒给 T4 的三条**：
+> ① `ocp-crypto/src/attribution.ts` 已经把**签名方与验证方必须逐字节一致**的部分收在一处（`attributionSigningInput` / `signChainNode` / `verifyChainNodeSignature` / `recomputeComplete`）。T4 的验证器**调它们**，不要另写一份签名材料构造——两份实现漂了，症状只会是一句「验签失败」。
+> ② `examples/typescript/src/offline-verify.ts` 是**演示**验证器，不是可复用的那个：它只认单跳 origin 链，没有重放检测、没有密钥轮换、错误不定位到跳。T4 写真正的验证器时可以照抄它的检查顺序（结构 → `complete` 重算 → 声明绑定 → 验签），但不要 import 它。
+> ③ example server 收到带 `upstream_token` 的 `attribution_context` 时**不签**——本节点只会签 origin，在别人的 token 上另起一条一跳链等于抹掉上游、把别人找来的流量记在自己头上。T4 做出 relay 追加入口后，这里要改成「追加一跳」而不是「不签」。
 
 ### 第 2 周（09-21 ~ 09-25）· 链路闭环与核销
 
