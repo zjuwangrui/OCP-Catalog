@@ -27,6 +27,7 @@
     "src/errors.ts",
     "src/jwks.ts",
     "src/keys.ts",
+    "src/verify.ts",
     "fixtures/canonical"
   ],
   "publishConfig": {

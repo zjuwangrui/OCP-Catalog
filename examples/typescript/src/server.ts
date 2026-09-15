@@ -16,7 +16,7 @@
  * The response shapes match @ocp-catalog/ocp-schema; see server.test.ts, which
  * parses every response through those schemas to prove conformance.
  */
-import { issueOriginToken, type AttributionToken } from '@ocp-catalog/ocp-crypto';
+import { appendRelayHop, issueOriginToken, type AttributionToken } from '@ocp-catalog/ocp-crypto';
 import { PRODUCTS, type Product } from './products';
 import { SIGNING_KEY, jwkSet } from './signing-key';
 
@@ -173,8 +173,8 @@ interface ResolveBody {
 /**
  * Mints an attribution token for this resolve, or returns `undefined`.
  *
- * Three conditions, each of which is a reason not to sign rather than a
- * formality:
+ * Two gates decide whether anything is signed at all, and each is a reason not
+ * to sign rather than a formality:
  *
  *  - `purpose` must be `checkout`. Spec §7.1: only checkout is settleable, and
  *    a signed token for a `view` would be a settlement claim over a page load.
@@ -182,17 +182,19 @@ interface ResolveBody {
  *    brought the buyer; there is nobody to name without it. This is also the
  *    §10.2 compatibility path — an agent that sends no context gets exactly the
  *    response it got before this node learned to sign.
- *  - There must be no `upstream_token`. This node only issues `origin` tokens.
- *    Minting a fresh one-hop chain on top of an upstream token would erase the
- *    hops that came before it and claim origin for traffic somebody else
- *    found — appending a `relay` hop instead is the verifier-side work in T4.
+ *
+ * Past those, the presence of an `upstream_token` decides *what* is signed: a
+ * fresh one-hop `origin` chain, or one more `relay` hop on the chain that
+ * arrived. Minting a fresh chain over an upstream token would erase the hops
+ * before it and claim origin for traffic somebody else found.
  */
 function mintAttribution(product: Product, body: ResolveBody): AttributionToken | undefined {
   if (body.purpose !== 'checkout') return undefined;
 
   const context = body.attribution_context as AttributionContext | undefined;
   if (!context || typeof context.agent_id !== 'string' || context.agent_id.length === 0) return undefined;
-  if (context.upstream_token !== undefined) return undefined;
+
+  if (context.upstream_token !== undefined) return relayAttribution(product, context.upstream_token);
 
   return issueOriginToken({
     privateJwk: SIGNING_KEY.privateJwk,
@@ -205,6 +207,58 @@ function mintAttribution(product: Product, body: ResolveBody): AttributionToken 
     providerId: PROVIDER_ID,
     purpose: 'checkout',
   });
+}
+
+/** A shallow shape check before handing anything to `appendRelayHop`. */
+function asUpstreamToken(value: unknown): AttributionToken | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const candidate = value as Partial<AttributionToken>;
+  if (candidate.kind !== 'AttributionToken' || !Array.isArray(candidate.chain)) return undefined;
+  return candidate as AttributionToken;
+}
+
+/**
+ * Appends this node as a `relay` hop on an upstream token.
+ *
+ * `entry_id` is *not* required to match this node's entry, and deliberately so.
+ * Core claims are immutable across hops (§4.3) — every upstream hop has already
+ * signed over them — so they keep naming the origin catalog's entry. What must
+ * match is `object_id`: relaying a token minted for a different product would
+ * attribute this sale to whoever found that one.
+ *
+ * Returns `undefined` rather than an error response when the upstream token is
+ * unusable, which keeps this node's resolve contract unchanged (§10.2). The
+ * agent gets the same response it would have got without attribution.
+ *
+ * > **The example stops short of what a production relay owes here.** A real
+ * > node MUST verify the upstream chain — `verifyAttributionToken` with a
+ * > resolver over each upstream `catalog_id`'s JWKS — before co-signing it.
+ * > Signing over an unverified chain puts this node's name on someone else's
+ * > forgery, and §5.2 makes that permanent: hop N's signature covers hops
+ * > 1..N−1. This node skips it because it has no key discovery configured and
+ * > the demo is meant to run with the network unplugged.
+ */
+function relayAttribution(product: Product, upstream: unknown): AttributionToken | undefined {
+  const token = asUpstreamToken(upstream);
+  if (!token || token.object_id !== product.id) return undefined;
+
+  try {
+    return appendRelayHop({
+      privateJwk: SIGNING_KEY.privateJwk,
+      kid: SIGNING_KEY.kid,
+      catalogId: CATALOG_ID,
+      token,
+      // This node received the token directly in the resolve request, with no
+      // catalog hop in between that went unrecorded.
+      chainComplete: true,
+      // It is in the money flow: it put the object in front of the buyer too.
+      settles: true,
+    });
+  } catch {
+    // Malformed, looping, or already-full chains (§5.4 / §4.4). Refusing to
+    // sign is the point; the chain is not made better by this node's key.
+    return undefined;
+  }
 }
 
 function resolve(body: ResolveBody) {

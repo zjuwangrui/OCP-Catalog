@@ -2,20 +2,22 @@
  * Attribution token issuance and per-hop signature primitives.
  *
  * Implements `docs/specs/attribution/v1.md` §4.3 (core claims), §5.2 (signing
- * input), and §5.3 (`complete` recomputation).
+ * input), §5.3 (`complete` recomputation), and §5.4 (structure validation).
  *
  * Scope note: this module builds and signs chains, and verifies one hop's
- * signature. It deliberately does **not** implement the full verifier — replay
- * detection, expiry, provider matching, and per-hop error localisation are the
- * verifier's job (T4) and belong with the policy state those checks need. What
- * lives here is the part that must be byte-identical between signer and
- * verifier, so both sides call the same code and cannot drift.
+ * signature. The full §7.1 eligibility filter — key resolution, expiry,
+ * provider matching, replay, and localising a failure to a hop — lives in
+ * `verify.ts`, because those checks need policy state and network-shaped
+ * inputs that issuance does not. What lives here is the part that must be
+ * byte-identical between signer and verifier, so both sides call the same code
+ * and cannot drift.
  *
  * No zod here, same as the rest of the package: §9.1 forbids canonicalizing
  * `parse()` output, and the types below are structural so a caller can pass a
  * Zod-inferred object without the schema ever reaching canonicalization.
  */
 import { canonicalizeValue } from './canonical';
+import { AttributionError } from './errors';
 import {
   OCP_SIGNATURE_ALG,
   signCanonical,
@@ -161,6 +163,132 @@ export function recomputeComplete(chain: ReadonlyArray<Pick<ChainNode, 'chain_co
   return chain.every((node) => node.chain_complete);
 }
 
+/**
+ * §5.4 — structure validation, which §7.1 runs *before* any signature check.
+ *
+ * Returns the reason the chain is malformed, or `undefined` if it is well
+ * formed. A reason string rather than a boolean because all four conditions
+ * collapse to one error code (`chain_broken`), so the only way a caller can
+ * tell a cycle from a renumbered hop is if this function says which.
+ *
+ * Doing this first is not an optimisation for the happy path — it is a refusal
+ * to run eight signature verifications on behalf of a chain that is already
+ * known to be junk.
+ */
+export function checkChainStructure(chain: ReadonlyArray<ChainNode>): string | undefined {
+  if (chain.length < 1) return 'chain is empty';
+  if (chain.length > MAX_CHAIN_LENGTH) {
+    return `chain has ${chain.length} hops, over the §4.4 cap of ${MAX_CHAIN_LENGTH}`;
+  }
+
+  const seen = new Set<string>();
+  for (const [index, node] of chain.entries()) {
+    const expectedHop = index + 1;
+    if (node.hop !== expectedHop) {
+      return `chain[${index}].hop is ${node.hop}, expected ${expectedHop}`;
+    }
+    const expectedRole: AttributionRole = index === 0 ? 'origin' : 'relay';
+    if (node.role !== expectedRole) {
+      return `hop ${expectedHop} has role "${node.role}", expected "${expectedRole}"`;
+    }
+    // A repeat is a loop, not a topology: the same node cannot both hand off
+    // and receive back without an unrecorded hop in between.
+    if (seen.has(node.catalog_id)) {
+      return `catalog_id "${node.catalog_id}" appears twice (hop ${expectedHop} repeats an earlier hop)`;
+    }
+    seen.add(node.catalog_id);
+  }
+
+  return undefined;
+}
+
+export interface AppendRelayHopParams {
+  privateJwk: Ed25519PrivateJwk;
+  kid: string;
+  catalogId: string;
+  /** The upstream token this node received. Its core claims are preserved verbatim. */
+  token: AttributionToken;
+  /**
+   * Whether this node received the token **directly** from the hop above it,
+   * with no unrecorded intermediary (§5.1).
+   *
+   * Deliberately required, with no default. It is the one fact in the node that
+   * only this relay knows, and both defaults are wrong: `true` would let a
+   * careless integrator assert a completeness it cannot back, and `false` would
+   * quietly make every chain incomplete and the field worthless.
+   */
+  chainComplete: boolean;
+  /**
+   * Whether this node takes a cut. Defaults to `false`, the opposite of
+   * {@link issueOriginToken}: §5.1 notes that not every relay is in the money
+   * flow, and forgetting to declare a share you are owed is a recoverable
+   * mistake, while claiming one you are not is a false settlement claim signed
+   * under your own key.
+   */
+  settles?: boolean;
+  now?: () => Date;
+}
+
+/**
+ * Appends one `relay` hop to an existing token and signs the whole prefix.
+ *
+ * The core claims — `jti`, `iat`, `exp`, `agent_id`, the object identifiers —
+ * are carried through untouched. They must be: every upstream hop already
+ * signed over them, so altering one here would invalidate the signatures of
+ * the hops this node is trying to preserve.
+ *
+ * Throws {@link AttributionError} with code `chain_broken` if the upstream
+ * chain is malformed, already at the §4.4 cap, or already contains this node.
+ * Refusing to sign is the right failure: a signature this node emits over a
+ * chain it knows to be invalid is worse than no attribution at all, because it
+ * carries this node's name.
+ */
+export function appendRelayHop(params: AppendRelayHopParams): AttributionToken {
+  const {
+    privateJwk,
+    kid,
+    catalogId,
+    token,
+    chainComplete,
+    settles = false,
+    now = () => new Date(),
+  } = params;
+
+  const broken = checkChainStructure(token.chain);
+  if (broken) {
+    throw new AttributionError('chain_broken', `refusing to relay a malformed chain: ${broken}`);
+  }
+  if (token.chain.length >= MAX_CHAIN_LENGTH) {
+    throw new AttributionError(
+      'chain_broken',
+      `chain is already ${token.chain.length} hops, at the §4.4 cap of ${MAX_CHAIN_LENGTH}`,
+    );
+  }
+  if (token.chain.some((node) => node.catalog_id === catalogId)) {
+    throw new AttributionError(
+      'chain_broken',
+      `"${catalogId}" is already in this chain; appending it again would make a loop`,
+    );
+  }
+
+  const core = coreClaims(token);
+  const unsigned: UnsignedChainNode = {
+    catalog_id: catalogId,
+    hop: token.chain.length + 1,
+    role: 'relay',
+    settles,
+    chain_complete: chainComplete,
+    alg: OCP_SIGNATURE_ALG,
+    kid,
+    signed_at: now().toISOString(),
+  };
+
+  const node = signChainNode({ privateJwk, core, chainPrefix: token.chain, node: unsigned });
+  const chain = [...token.chain, node];
+
+  return { ...core, complete: recomputeComplete(chain), chain };
+}
+
 export interface IssueOriginTokenParams {
   privateJwk: Ed25519PrivateJwk;
   kid: string;
@@ -185,8 +313,9 @@ export interface IssueOriginTokenParams {
  *
  * `chain_complete` is `true` because a chain of one that this node started has
  * no unrecorded upstream by construction. A relay appending to someone else's
- * token cannot make that claim from local knowledge alone, which is why
- * multi-hop issuance is a separate entry point (T4) rather than a flag here.
+ * token cannot make that claim from local knowledge, which is why
+ * {@link appendRelayHop} is a separate entry point that demands the answer
+ * rather than a flag here that could default to it.
  */
 export function issueOriginToken(params: IssueOriginTokenParams): AttributionToken {
   const {

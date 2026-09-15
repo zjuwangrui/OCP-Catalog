@@ -6,7 +6,16 @@ import {
   resolvableReferenceSchema,
   wellKnownCatalogDiscoverySchema,
 } from '@ocp-catalog/ocp-schema';
-import { assertEd25519PublicJwk } from '@ocp-catalog/ocp-crypto';
+import {
+  appendRelayHop,
+  assertEd25519PublicJwk,
+  generateEd25519KeyPair,
+  issueOriginToken,
+  publicJwkOf,
+  staticKeyResolver,
+  verifyAttributionToken,
+  type AttributionToken,
+} from '@ocp-catalog/ocp-crypto';
 import { handle } from './server';
 import { verifyOffline } from './offline-verify';
 
@@ -142,7 +151,7 @@ describe('resolve 上的归因签发（T3）', () => {
     }
   });
 
-  test('带 upstream_token 时不签——本节点只签 origin，不能抹掉上游', async () => {
+  test('upstream_token 形状不对 → 不签，但 resolve 照常返回', async () => {
     const parsed = resolvableReferenceSchema.parse(
       await resolveRaw({
         purpose: 'checkout',
@@ -187,7 +196,7 @@ describe('离线验通：取到公钥之后不再联网（T3 验收）', () => {
       throw new Error('offline: verification must not touch the network');
     }) as unknown as typeof globalThis.fetch;
     try {
-      const result = verifyOffline(artifacts);
+      const result = await verifyOffline(artifacts);
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.agentId).toBe(AGENT.agent_id);
@@ -214,7 +223,7 @@ describe('离线验通：取到公钥之后不再联网（T3 验收）', () => {
     for (const [label, tamper, expected] of cases) {
       const fresh = structuredClone(artifacts);
       tamper(attributionOf(fresh.resolved) as unknown as Token);
-      const result = verifyOffline(fresh);
+      const result = await verifyOffline(fresh);
       // Compare with the label attached so a failure names the case.
       expect([label, result.ok ? 'verified' : result.error]).toEqual([label, expected]);
     }
@@ -222,14 +231,14 @@ describe('离线验通：取到公钥之后不再联网（T3 验收）', () => {
 
   test('换一个目录节点的密钥集 → key_not_found', async () => {
     const artifacts = await fetchArtifacts();
-    const result = verifyOffline({ ...artifacts, jwks: { keys: [] } });
+    const result = await verifyOffline({ ...artifacts, jwks: { keys: [] } });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe('key_not_found');
   });
 
-  test('凭证过期 → token_expired，且在验签之前就拦下', async () => {
+  test('凭证过期 → token_expired', async () => {
     const artifacts = await fetchArtifacts();
-    const result = verifyOffline({ ...artifacts, now: new Date(Date.now() + 2 * 60 * 60 * 1000) });
+    const result = await verifyOffline({ ...artifacts, now: new Date(Date.now() + 2 * 60 * 60 * 1000) });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe('token_expired');
   });
@@ -238,8 +247,117 @@ describe('离线验通：取到公钥之后不再联网（T3 验收）', () => {
     const artifacts = await fetchArtifacts();
     const resolved = structuredClone(artifacts.resolved);
     resolved.object_id = 'sku-999';
-    const result = verifyOffline({ ...artifacts, resolved });
+    const result = await verifyOffline({ ...artifacts, resolved });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe('object_mismatch');
+  });
+});
+
+describe('多跳：接在上游 token 后面追加一跳（T4）', () => {
+  const upstreamKey = generateEd25519KeyPair();
+  const UPSTREAM_ID = 'cat_upstream_relaytest';
+
+  /** A token some other catalog node issued for the same product. */
+  const upstreamToken = (over: Record<string, unknown> = {}) => ({
+    ...issueOriginToken({
+      privateJwk: upstreamKey.privateJwk,
+      kid: upstreamKey.kid,
+      catalogId: UPSTREAM_ID,
+      agentId: AGENT.agent_id,
+      entryId: 'entry_upstream_sku-001',
+      objectId: 'sku-001',
+      providerId: 'example_inmemory',
+      purpose: 'checkout',
+    }),
+    ...over,
+  });
+
+  const relayed = async (upstream: unknown) =>
+    attributionOf(
+      await resolveRaw({ purpose: 'checkout', attribution_context: { ...AGENT, upstream_token: upstream } }),
+    );
+
+  test('追加为第 2 跳 relay，上游那一跳原样保留', async () => {
+    const upstream = upstreamToken();
+    const token = (await relayed(upstream)) as unknown as AttributionToken;
+    expect(token.chain).toHaveLength(2);
+    expect(token.chain[0]!.catalog_id).toBe(UPSTREAM_ID);
+    expect(token.chain[0]!.signature).toBe(upstream.chain[0]!.signature);
+    expect(token.chain[1]!.hop).toBe(2);
+    expect(token.chain[1]!.role).toBe('relay');
+    expect(token.chain[1]!.catalog_id).toBe('cat_example_typescript');
+  });
+
+  test('core claims 不改——jti / iat / exp / entry_id 全是上游的', async () => {
+    const upstream = upstreamToken();
+    const token = (await relayed(upstream)) as unknown as AttributionToken;
+    // Rewriting any of these would invalidate hop 1's signature, which is the
+    // structural reason a relay cannot quietly re-point a token at itself.
+    expect(token.jti).toBe(upstream.jti);
+    expect(token.iat).toBe(upstream.iat);
+    expect(token.exp).toBe(upstream.exp);
+    expect(token.entry_id).toBe('entry_upstream_sku-001');
+    expect(token.iss).toBe(UPSTREAM_ID);
+  });
+
+  test('两跳链逐跳验通，两个节点都参与结算', async () => {
+    const token = (await relayed(upstreamToken())) as unknown as AttributionToken;
+    const jwks = await body(await get('/.well-known/jwks.json'));
+    const verdict = await verifyAttributionToken({
+      token,
+      resolveKey: staticKeyResolver({
+        [UPSTREAM_ID]: {
+          keys: [{ ...publicJwkOf(upstreamKey.privateJwk), kid: upstreamKey.kid, alg: 'EdDSA', use: 'sig' }],
+        },
+        cat_example_typescript: jwks as { keys: unknown[] },
+      }),
+    });
+    expect(verdict.ok).toBe(true);
+    if (!verdict.ok) return;
+    expect(verdict.hops).toBe(2);
+    expect(verdict.complete).toBe(true);
+    expect(verdict.settlingCatalogIds).toEqual([UPSTREAM_ID, 'cat_example_typescript']);
+  });
+
+  test('离线验通仍然成立——校验的是最后一跳，不是 iss', async () => {
+    const discovery = (await body(await get('/.well-known/ocp-catalog'))) as { jwks_url: string };
+    const jwks = await body(await get(new URL(discovery.jwks_url).pathname));
+    const resolved = await resolveRaw({
+      purpose: 'checkout',
+      attribution_context: { ...AGENT, upstream_token: upstreamToken() },
+    });
+    // Only this node's JWKS is on hand, so hop 1 cannot be verified here — the
+    // merchant would need the upstream node's keys too. That is the honest
+    // failure, and it names the hop it could not check.
+    const result = await verifyOffline({ discovery, jwks, resolved });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe('key_not_found');
+    expect(result.detail).toContain('hop 1');
+  });
+
+  test('上游 token 说的是另一个商品 → 不签', async () => {
+    expect(await relayed(upstreamToken({ object_id: 'sku-999' }))).toBe(undefined);
+  });
+
+  test('本节点已在上游链里 → 不签（环路）', async () => {
+    const selfIssued = attributionOf(await resolveRaw({ purpose: 'checkout', attribution_context: AGENT }));
+    expect(await relayed(selfIssued)).toBe(undefined);
+  });
+
+  test('链已满 8 跳 → 不签，resolve 照常返回', async () => {
+    let token = upstreamToken() as unknown as AttributionToken;
+    for (let i = 2; i <= 8; i += 1) {
+      const key = generateEd25519KeyPair();
+      token = appendRelayHop({
+        privateJwk: key.privateJwk,
+        kid: key.kid,
+        catalogId: `cat_filler_${i}`,
+        token,
+        chainComplete: true,
+      });
+    }
+    expect(token.chain).toHaveLength(8);
+    expect(await relayed(token)).toBe(undefined);
   });
 });

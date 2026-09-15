@@ -1,13 +1,14 @@
 # @ocp-catalog/ocp-crypto
 
-OCP Catalog 的规范化、签名与密钥发现实现。四块内容：
+OCP Catalog 的规范化、签名与密钥发现实现。五块内容：
 
 | 模块 | 规范 | 内容 |
 |---|---|---|
 | `canonical.ts` | [OCP Canonical JSON v1.0](../../docs/specs/crypto/canonicalization.md) | OCP-JCS v1 规范化、`sha256:` 哈希 |
 | `keys.ts` | [归因规范 §5](../../docs/specs/attribution/v1.md) | Ed25519 生成 / 签名 / 验签、JWK 形态 |
 | `jwks.ts` | [归因规范 §7.1](../../docs/specs/attribution/v1.md) 第 4 行 | JWKS 加载、`kid` 解析、TTL 缓存 |
-| `attribution.ts` | [归因规范 §4.3 / §5.2 / §5.3](../../docs/specs/attribution/v1.md) | 核心声明、逐跳签名材料、`complete` 重算、origin token 签发 |
+| `attribution.ts` | [归因规范 §4.3 / §5.2 / §5.3 / §5.4](../../docs/specs/attribution/v1.md) | 核心声明、逐跳签名材料、`complete` 重算、链结构校验、origin 签发与 relay 追加 |
+| `verify.ts` | [归因规范 §7.1 / §8](../../docs/specs/attribution/v1.md) | 完整验证器：逐跳验签并定位到跳、`jti` 防重放、有效期与 provider 匹配 |
 
 一致性向量在 [`fixtures/canonical/`](./fixtures/canonical/README.md)（75 条），`src/canonical.test.ts` 逐条跑。
 
@@ -81,7 +82,60 @@ recomputeComplete(token.chain) === token.complete;   // §5.3：必须重算，�
 - **第 N 跳签的是含自己在内的前缀**，不是只签前 N−1 跳。漏掉自己会让 `settles` 和 `chain_complete` 落在签名之外——而钱正好挂在这两个字段上。
 - **`coreClaims` 是「删掉 `complete` 和 `chain`」，不是「挑出想要的键」**。挑键的写法会让将来新增的可选声明悄悄掉出签名材料，于是一边签了一边没签，报出来只是一句「验签失败」。
 
-`attribution.ts` 只做**签发**和**单跳验签**——重放、过期、provider 匹配、逐跳错误定位是完整验证器的事（T4），要配着它们需要的策略状态一起写。放在这里的是签名方和验证方**必须逐字节一致**的那部分，两边调同一份代码才不会漂。多跳（relay）签发同理是 T4 的独立入口：一跳链是本节点自己起的，`chain_complete: true` 由构造保证；接在别人 token 后面的中继，靠本地信息给不出这个结论。
+`attribution.ts` 只做**签发**和**单跳验签**——重放、过期、provider 匹配、逐跳错误定位在 `verify.ts`，它们要配着自己需要的策略状态一起写。放在 `attribution.ts` 的是签名方和验证方**必须逐字节一致**的那部分，两边调同一份代码才不会漂。
+
+### 多跳：接在别人的 token 后面
+
+```ts
+import { appendRelayHop } from '@ocp-catalog/ocp-crypto';
+
+const relayed = appendRelayHop({
+  privateJwk, kid, catalogId: 'cat_relay_a',
+  token: upstreamToken,        // core claims 原样带走，一个字都不能改
+  chainComplete: true,         // 故意没有默认值
+  settles: true,               // 默认 false
+});
+```
+
+`chainComplete` 必须显式给，因为两个默认值都是错的：给 `true` 会让一次随手的接入声明出它背不起的「无未记录上游」，给 `false` 会让每条链都不完整、这个字段就作废了。而 `settles` 默认 `false`——少报一份自己应得的分成还能补，多报一份就是用自己的私钥签下一条假结算声明。
+
+**追加之前必须先验上游链**（`verifyAttributionToken`）。§5.2 让第 N 跳的签名永久覆盖第 1..N−1 跳，所以在一条没验过的链上联署，等于把本节点的名字签在别人的伪造上。
+
+### 完整验证器
+
+```ts
+import { verifyAttributionToken, staticKeyResolver, JtiRegistry } from '@ocp-catalog/ocp-crypto';
+
+const verdict = await verifyAttributionToken({
+  token,
+  resolveKey: staticKeyResolver({ cat_origin: originJwks, cat_relay_a: relayJwks }),
+  at: report.occurred_at,                       // 成交时刻，不是验证时刻
+  expectedProviderId: report.provider_id,
+  replayGuard: { registry, orderId: report.order_id },
+});
+
+if (!verdict.ok) console.error(verdict.error.code, verdict.error.hop);
+else console.log(verdict.settlingCatalogIds, verdict.complete, verdict.lastSignedAt);
+```
+
+失败返回**结果**而不是抛异常：结算方手上有好几条候选凭证，必须先记下每条为什么出局，再在幸存者之间裁决（§7.2）。一次拒绝是数据。
+
+`at` 是**成交时刻**。第 8、9 行问的是交易发生时凭证是否在窗口内；拿「此刻」去比，会把一笔迟报一小时的正常成交拒掉。
+
+**取不到密钥和凭证是假的，必须分开。** `jwks_unavailable` / `jwks_expired` / `jwks_malformed` 会让 Promise **reject**，不会变成 `ok: false`——密钥服务器宕机的节点并没有伪造任何东西，把它的故障记成 `key_not_found` 等于按伪造来结算它。只有「那个 `kid` 下确实发布了的东西不可用」才是判决（规范 v1.0.1 已写进 §8）。
+
+**第 3–5 行按 alg → key → signature 跑，跳号升序。** 规范 v1.0 把这三行印成 signature → key → alg，而那个顺序执行不了：验签得先有公钥，先验签再查 `alg` 更是把 §5.1 要堵的算法混淆重新打开了一次。升序是规范性的——§5.2 的第 2 条性质说改第 K 跳会让第 K..N 跳全失效，所以**最小的失效跳号才是篡改位置**，报别的跳就是指认无辜节点。规范已按此更正（§7.1，v1.0.1）。
+
+### `JtiRegistry` 是内存实现，上生产前必须换掉
+
+这不是注意事项，是一条有名字的正确性缺口：
+
+1. **重启即清空**——重启前签发的每一条凭证都能再被重放一次。夜间重启的结算进程有一个夜间重放窗口。
+2. **按进程隔离**——负载均衡后面的两个结算 worker 各持一份 map，同一条凭证在每份里都能被认领一次。
+
+替代物是**和结算记录同一个事务性存储里的一行**，`jti` 为键、`order_id` 在旁边：认领和打款必须一起提交，否则钱动了之后守卫还可能丢。写满时它**抛异常而不是淘汰**——淘汰会在进程最忙的那一刻悄悄打开它本来要关的那个窗口。
+
+保留期是**推导出来的，不是配置项**：条目留到凭证自己的 `exp`。过了那一刻第 9 行本来就会拒掉它，再记住这个 `jti` 也保护不了任何东西。
 
 端到端的样子见 [`examples/typescript`](../../examples/typescript/README.md)——curl 取公钥、关掉节点、离线验通。
 
@@ -136,7 +190,9 @@ recomputeComplete(token.chain) === token.complete;   // §5.3：必须重算，�
 | `invalid_key` | JWK 形状对但内容不可用（如 `x` 长度不是 32 字节） |
 | `invalid_encoding` | 不是无填充 base64url |
 
-`key_not_found` 与 `alg_not_supported` 与归因规范 §8 同名，T4 的验证器会给它们附上 `hop` 再抛出去。
+`key_not_found` 与 `alg_not_supported` 与归因规范 §8 同名，`verify.ts` 的验证器直接透传这两个码并补上 `hop`，不另起一套。
+
+**归因**（`AttributionError`，规范 §8 的 11 个码）：结构与裁决层面的失败，凡是能定位到跳的都带 `hop`。完整列表与顺序见 `ATTRIBUTION_ERROR_CODES`，以规范 §8 为准。
 
 ### 几条刻意的取舍
 
@@ -152,6 +208,7 @@ recomputeComplete(token.chain) === token.complete;   // §5.3：必须重算，�
 
 ## 状态
 
-- ✅ TypeScript：规范化（Level 1）、Ed25519、JWKS
+- ✅ TypeScript：规范化（Level 1）、Ed25519、JWKS、归因签发（origin / relay）与完整验证器
+- ⚠️ `JtiRegistry` 是内存实现，生产必须换成事务性存储（见上）
 - ⏸ Python / Go：backlog。75 条向量语言中立，补实现不会返工（两周计划 §5 已登记这个代价：**两周内只有 TS 能验签**）
 - ⛔ Level 2（完整双精度）：v1 不实现，见规范 §7.4。需要签含金额的对象时，**首选把金额改成最小单位整数**，不是实现 Level 2

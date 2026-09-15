@@ -25,12 +25,14 @@ reference implementation, see the `docs/` directory of the instances repo.
     [`packages/ocp-crypto`](../packages/ocp-crypto/README.md), all 75 conformance
     vectors green. Python / Go not implemented, so cross-language byte agreement
     is asserted by the vectors only, not yet demonstrated.
-  - `specs/attribution/v1.md` — **draft**; data model, origin-token issuance, and
-    per-hop signature verification implemented, end to end through
+  - `specs/attribution/v1.md` — **draft**; data model, origin-token issuance,
+    relay chains, and the full §7.1 verifier implemented, end to end through
     [`examples/typescript`](../examples/typescript/README.md) (curl the public key,
-    stop the node, verify offline). The **full verifier** — replay detection,
-    relay chains, per-hop error localisation — is not implemented, so only
-    single-hop `origin` tokens can be checked today.
+    stop the node, verify offline). A tampered hop is localised by hop number.
+    Replay detection is in place but **in-memory** (`JtiRegistry`), so it does not
+    survive a restart or span processes — it needs a transactional store before
+    real settlement. `duplicate_order` (row 11) and last-touch adjudication are
+    not implemented yet.
 - `proposals/`: in-flight design proposals and implementation plans. Not normative;
   a proposal becomes normative only once it lands under `specs/`.
 

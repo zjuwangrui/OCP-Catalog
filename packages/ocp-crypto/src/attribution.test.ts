@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  appendRelayHop,
   attributionSigningBytes,
+  checkChainStructure,
   coreClaims,
   issueOriginToken,
   recomputeComplete,
@@ -11,6 +13,7 @@ import {
   type ChainNode,
   type CoreClaims,
 } from './attribution';
+import { errorCodeOf } from './errors';
 import { generateEd25519KeyPair, publicJwkOf } from './keys';
 
 const issuer = generateEd25519KeyPair();
@@ -289,5 +292,198 @@ describe('signChainNode 的前缀语义', () => {
         hopIndex: 1,
       }),
     ).toBe(false);
+  });
+});
+
+describe('checkChainStructure（§5.4）', () => {
+  const node = (over: Partial<ChainNode>): ChainNode => ({
+    catalog_id: 'cat_a',
+    hop: 1,
+    role: 'origin',
+    settles: true,
+    chain_complete: true,
+    alg: 'EdDSA',
+    kid: 'kid_a',
+    signed_at: '2026-09-21T10:00:00.000Z',
+    signature: 'x',
+    ...over,
+  });
+
+  test('合法单跳 / 三跳链 → undefined', () => {
+    expect(checkChainStructure(freshToken().chain)).toBe(undefined);
+    expect(
+      checkChainStructure([
+        node({}),
+        node({ catalog_id: 'cat_b', hop: 2, role: 'relay' }),
+        node({ catalog_id: 'cat_c', hop: 3, role: 'relay' }),
+      ]),
+    ).toBe(undefined);
+  });
+
+  test('空链 → 报错', () => {
+    expect(checkChainStructure([])).toContain('empty');
+  });
+
+  test('超过 8 跳 → 报错（§4.4 攻击面上限，不是性能）', () => {
+    const long = Array.from({ length: 9 }, (_, i) =>
+      node({ catalog_id: `cat_${i}`, hop: i + 1, role: i === 0 ? 'origin' : 'relay' }),
+    );
+    expect(checkChainStructure(long)).toContain('over the §4.4 cap');
+    // 8 is still fine — the cap is inclusive.
+    expect(checkChainStructure(long.slice(0, 8))).toBe(undefined);
+  });
+
+  test('hop 号不连续 / 重排 → 报错', () => {
+    expect(
+      checkChainStructure([node({}), node({ catalog_id: 'cat_b', hop: 3, role: 'relay' })]),
+    ).toContain('expected 2');
+    // Swapping two nodes is caught by the hop numbers, which is the whole
+    // reason `hop` is a field rather than an array index.
+    expect(
+      checkChainStructure([
+        node({ catalog_id: 'cat_b', hop: 2, role: 'relay' }),
+        node({ hop: 1 }),
+      ]),
+    ).toContain('expected 1');
+  });
+
+  test('首跳非 origin / 后续跳非 relay → 报错', () => {
+    expect(checkChainStructure([node({ role: 'relay' })])).toContain('expected "origin"');
+    expect(
+      checkChainStructure([node({}), node({ catalog_id: 'cat_b', hop: 2, role: 'origin' })]),
+    ).toContain('expected "relay"');
+  });
+
+  test('catalog_id 重复 → 报错（环路）', () => {
+    expect(
+      checkChainStructure([
+        node({}),
+        node({ catalog_id: 'cat_b', hop: 2, role: 'relay' }),
+        node({ catalog_id: 'cat_a', hop: 3, role: 'relay' }),
+      ]),
+    ).toContain('appears twice');
+  });
+});
+
+describe('appendRelayHop（多跳签发）', () => {
+  const relay = generateEd25519KeyPair();
+
+  test('追加一跳：hop=2、role=relay、core claims 原样带过', () => {
+    const origin = freshToken();
+    const two = appendRelayHop({
+      privateJwk: relay.privateJwk,
+      kid: relay.kid,
+      catalogId: 'cat_relay',
+      token: origin,
+      chainComplete: true,
+    });
+
+    expect(two.chain).toHaveLength(2);
+    expect(two.chain[1]!.hop).toBe(2);
+    expect(two.chain[1]!.role).toBe('relay');
+    expect(two.chain[1]!.catalog_id).toBe('cat_relay');
+    // The claims every upstream hop already signed over must survive byte-identical.
+    expect(coreClaims(two)).toEqual(coreClaims(origin));
+    expect(two.chain[0]).toEqual(origin.chain[0]!);
+  });
+
+  test('settles 默认 false——漏报自己该拿的钱可以补，冒领不行（§5.1）', () => {
+    const two = appendRelayHop({
+      privateJwk: relay.privateJwk,
+      kid: relay.kid,
+      catalogId: 'cat_relay',
+      token: freshToken(),
+      chainComplete: true,
+    });
+    expect(two.chain[1]!.settles).toBe(false);
+  });
+
+  test('chain_complete: false → 顶层 complete 重算为 false', () => {
+    const two = appendRelayHop({
+      privateJwk: relay.privateJwk,
+      kid: relay.kid,
+      catalogId: 'cat_relay',
+      token: freshToken(),
+      chainComplete: false,
+    });
+    expect(two.complete).toBe(false);
+    expect(recomputeComplete(two.chain)).toBe(false);
+  });
+
+  test('新跳的签名覆盖整条前缀，旧跳签名不受影响', () => {
+    const origin = freshToken();
+    const two = appendRelayHop({
+      privateJwk: relay.privateJwk,
+      kid: relay.kid,
+      catalogId: 'cat_relay',
+      token: origin,
+      chainComplete: true,
+    });
+    const core = coreClaims(two);
+    expect(
+      verifyChainNodeSignature({ jwk: publicJwkOf(relay.privateJwk), core, chain: two.chain, hopIndex: 1 }),
+    ).toBe(true);
+    expect(
+      verifyChainNodeSignature({ jwk: publicJwkOf(issuer.privateJwk), core, chain: two.chain, hopIndex: 0 }),
+    ).toBe(true);
+  });
+
+  test('本节点已在链内 → 拒签（环路）', () => {
+    const origin = freshToken();
+    expect(() =>
+      appendRelayHop({
+        privateJwk: issuer.privateJwk,
+        kid: issuer.kid,
+        catalogId: 'cat_origin',
+        token: origin,
+        chainComplete: true,
+      }),
+    ).toThrow(/loop/);
+  });
+
+  test('链已满 8 跳 → 拒签，错误码 chain_broken', () => {
+    let token = freshToken();
+    for (let i = 2; i <= 8; i += 1) {
+      const key = generateEd25519KeyPair();
+      token = appendRelayHop({
+        privateJwk: key.privateJwk,
+        kid: key.kid,
+        catalogId: `cat_relay_${i}`,
+        token,
+        chainComplete: true,
+      });
+    }
+    expect(token.chain).toHaveLength(8);
+
+    const extra = generateEd25519KeyPair();
+    try {
+      appendRelayHop({
+        privateJwk: extra.privateJwk,
+        kid: extra.kid,
+        catalogId: 'cat_relay_9',
+        token,
+        chainComplete: true,
+      });
+      throw new Error('expected appendRelayHop to refuse a 9th hop');
+    } catch (err) {
+      expect(errorCodeOf(err)).toBe('chain_broken');
+    }
+  });
+
+  test('上游链本身就坏 → 拒签，不在坏链上盖自己的名字', () => {
+    const origin = freshToken();
+    const broken: AttributionToken = {
+      ...origin,
+      chain: [{ ...origin.chain[0]!, hop: 7 }],
+    };
+    expect(() =>
+      appendRelayHop({
+        privateJwk: relay.privateJwk,
+        kid: relay.kid,
+        catalogId: 'cat_relay',
+        token: broken,
+        chainComplete: true,
+      }),
+    ).toThrow(/malformed chain/);
   });
 });

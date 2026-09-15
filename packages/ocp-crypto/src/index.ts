@@ -52,8 +52,10 @@ export type {
 
 export {
   MAX_CHAIN_LENGTH,
+  appendRelayHop,
   attributionSigningBytes,
   attributionSigningInput,
+  checkChainStructure,
   coreClaims,
   issueOriginToken,
   recomputeComplete,
@@ -63,6 +65,7 @@ export {
 } from './attribution';
 export type {
   AgentIdentitySource,
+  AppendRelayHopParams,
   AttributionPurpose,
   AttributionRole,
   AttributionToken,
@@ -72,5 +75,20 @@ export type {
   UnsignedChainNode,
 } from './attribution';
 
-export { CanonicalError, CryptoError, SPEC_CANONICAL_ERROR_CODES, errorCodeOf } from './errors';
-export type { CanonicalErrorCode, CryptoErrorCode } from './errors';
+export { JtiRegistry, jwksCacheKeyResolver, staticKeyResolver, verifyAttributionToken } from './verify';
+export type {
+  AttributionKeyResolver,
+  AttributionVerdict,
+  VerifyAttributionTokenParams,
+  VerifyAttributionTokenResult,
+} from './verify';
+
+export {
+  ATTRIBUTION_ERROR_CODES,
+  AttributionError,
+  CanonicalError,
+  CryptoError,
+  SPEC_CANONICAL_ERROR_CODES,
+  errorCodeOf,
+} from './errors';
+export type { AttributionErrorCode, CanonicalErrorCode, CryptoErrorCode } from './errors';
