@@ -18,6 +18,7 @@ import {
 } from '@ocp-catalog/ocp-crypto';
 import { handle } from './server';
 import { verifyOffline } from './offline-verify';
+import { MerchantSettler, buildReport } from './settle';
 
 const get = (path: string) => handle(new Request(`http://localhost${path}`));
 const post = (path: string, body: unknown) =>
@@ -359,5 +360,121 @@ describe('多跳：接在上游 token 后面追加一跳（T4）', () => {
     }
     expect(token.chain).toHaveLength(8);
     expect(await relayed(token)).toBe(undefined);
+  });
+});
+
+describe('商户收单：回报、去重、裁决（T5）', () => {
+  const NODE_ID = 'cat_example_typescript';
+
+  /** One resolve plus this node's JWKS — everything a merchant needs offline. */
+  async function merchantArtifacts() {
+    const jwks = (await body(await get('/.well-known/jwks.json'))) as { keys?: unknown };
+    const resolved = await resolveRaw({ purpose: 'checkout', attribution_context: AGENT });
+    return { jwks, resolved, settler: new MerchantSettler({ [NODE_ID]: jwks }) };
+  }
+
+  const reportFor = (resolved: Record<string, unknown>, over: Partial<Parameters<typeof buildReport>[0]> = {}) =>
+    buildReport({
+      resolved,
+      orderId: 'ord_1',
+      reportId: 'rep_1',
+      amountMinor: 12900,
+      currency: 'CNY',
+      occurredAt: new Date(),
+      ...over,
+    });
+
+  test('回报通过 conversionReportSchema，provider_id 取自凭证', async () => {
+    const { resolved } = await merchantArtifacts();
+    const report = reportFor(resolved);
+    // buildReport parses before returning; this asserts the fields it derived.
+    expect(report.provider_id).toBe('example_inmemory');
+    expect(report.attribution_token.jti).toBe(
+      (attributionOf(resolved) as unknown as AttributionToken).jti,
+    );
+    expect(report.amount_minor).toBe(12900);
+  });
+
+  test('同一个 order_id 回报两次，只记一次（T5 判据一）', async () => {
+    const { resolved, settler } = await merchantArtifacts();
+    const report = reportFor(resolved);
+
+    const [first] = await settler.settle([report]);
+    const [second] = await settler.settle([report]);
+
+    expect(first!.result.ok).toBe(true);
+    expect(second!.result.ok).toBe(true);
+    if (!first!.result.ok || !second!.result.ok) return;
+    if (first!.result.action !== 'settled' || second!.result.action !== 'settled') return;
+    expect(first!.result.idempotent).toBe(false);
+    expect(second!.result.idempotent).toBe(true);
+    expect(settler.ledger.settledOrders).toBe(1);
+    expect(settler.ledger.records()).toHaveLength(1);
+  });
+
+  test('同一订单换一份新回报 → duplicate_order，不是第二次打款', async () => {
+    const { resolved, settler } = await merchantArtifacts();
+    await settler.settle([reportFor(resolved)]);
+
+    // A second resolve mints a second token; both name the same sale.
+    const again = await resolveRaw({ purpose: 'checkout', attribution_context: AGENT });
+    const [outcome] = await settler.settle([reportFor(again, { reportId: 'rep_2' })]);
+    expect(outcome!.result.ok).toBe(false);
+    if (outcome!.result.ok) return;
+    expect(outcome!.result.error.code).toBe('duplicate_order');
+    expect(settler.ledger.settledOrders).toBe(1);
+  });
+
+  test('两张凭证争同一订单 → 裁出唯一赢家（T5 判据二）', async () => {
+    const { settler } = await merchantArtifacts();
+    const first = await resolveRaw({ purpose: 'checkout', attribution_context: AGENT });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = await resolveRaw({ purpose: 'checkout', attribution_context: AGENT });
+
+    const tokens = [attributionOf(first), attributionOf(second)] as unknown as AttributionToken[];
+    expect(tokens[0]!.jti).not.toBe(tokens[1]!.jti);
+    const latest = tokens[0]!.chain[0]!.signed_at >= tokens[1]!.chain[0]!.signed_at ? tokens[0]! : tokens[1]!;
+
+    const [outcome] = await settler.settle([
+      reportFor(first, { reportId: 'rep_a' }),
+      reportFor(second, { reportId: 'rep_b' }),
+    ]);
+
+    expect(outcome!.result.ok).toBe(true);
+    if (!outcome!.result.ok || outcome!.result.action !== 'settled') return;
+    expect(outcome!.result.candidates.filter((c) => c.won)).toHaveLength(1);
+    expect(outcome!.result.record.jti).toBe(latest.jti);
+    expect(outcome!.result.record.settlingCatalogIds).toEqual([NODE_ID]);
+    expect(settler.ledger.settledOrders).toBe(1);
+  });
+
+  test('不同订单各结各的，一次调用分组处理', async () => {
+    const { settler } = await merchantArtifacts();
+    const a = await resolveRaw({ purpose: 'checkout', attribution_context: AGENT });
+    const b = await resolveRaw({ purpose: 'checkout', attribution_context: AGENT });
+
+    const outcomes = await settler.settle([
+      reportFor(a, { orderId: 'ord_a', reportId: 'rep_a' }),
+      reportFor(b, { orderId: 'ord_b', reportId: 'rep_b', amountMinor: 500 }),
+    ]);
+    expect(outcomes.map((o) => o.orderId)).toEqual(['ord_a', 'ord_b']);
+    expect(outcomes.every((o) => o.result.ok)).toBe(true);
+    expect(settler.ledger.settledOrders).toBe(2);
+  });
+
+  test('商户拿别人的凭证来报自己的单 → provider_mismatch', async () => {
+    const { settler } = await merchantArtifacts();
+    const resolved = await resolveRaw({ purpose: 'checkout', attribution_context: AGENT });
+    const report = { ...reportFor(resolved), provider_id: 'prov_someone_else' };
+
+    const [outcome] = await settler.settle([report]);
+    expect(outcome!.result.ok).toBe(false);
+    if (outcome!.result.ok) return;
+    expect(outcome!.result.error.code).toBe('provider_mismatch');
+  });
+
+  test('不带 attribution 的 resolve 没得可报', async () => {
+    const resolved = await resolveRaw({ purpose: 'view' });
+    expect(() => reportFor(resolved)).toThrow('no attribution token');
   });
 });

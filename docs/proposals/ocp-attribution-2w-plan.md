@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **进行中**——T1（2026-09-15）、T2（2026-09-17）、T3（2026-09-18）、T4（2026-09-22）已完成 |
+| 状态 | **进行中**——T1（2026-09-15）、T2（2026-09-17）、T3（2026-09-18）、T4（2026-09-22）、T5（2026-09-24）已完成 |
 | 版本 | v1.0 |
 | 日期 | 2026-09-11 |
 | 起止 | **2026-09-14（周一）– 2026-09-25（周五）**，10 个工作日 |
@@ -106,7 +106,7 @@
 | 小任务 | 天 | 内容 | 完成判据 |
 |---|---|---|---|
 | **T4** ✅ | 周一二 | ① 多跳：每跳追加 `AttributionChainNode` 并对链前缀签名<br>② 验证器：逐节点验签 + `complete` 判定<br>③ `jti` 防重放（内存 TTL 缓存，**明确标注生产需持久化**） | 三跳链逐跳验通；篡改中间节点 → 错误**精确定位到第几跳**；同一 `jti` 重放 → 拒绝 |
-| **T5** | 周三四 | ① Provider 侧验证参考实现（独立小脚本，模拟商户收单）<br>② `ConversionReport` 回报：`{attribution_token, order_id, amount_minor, currency}`<br>③ `order_id` 去重（联盟 `txn_id` 同构）<br>④ last-touch 裁决实现 | 同一 `order_id` 回报两次**只记一次**；两个凭证争同一订单 → 按规则裁出**唯一**赢家 |
+| **T5** ✅ | 周三四 | ① Provider 侧验证参考实现（独立小脚本，模拟商户收单）<br>② `ConversionReport` 回报：`{attribution_token, order_id, amount_minor, currency}`<br>③ `order_id` 去重（联盟 `txn_id` 同构）<br>④ last-touch 裁决实现 | 同一 `order_id` 回报两次**只记一次**；两个凭证争同一订单 → 按规则裁出**唯一**赢家 |
 | **T6** | 周五 | ① CLI `ocp attribution verify` + `ocp catalog resolve --verify-attribution`<br>② 端到端演示脚本<br>③ 零破坏回归 | 六条断言逐条打印通过；`bun run typecheck && bun test` 绿 |
 
 **周五演示——六条断言**：
@@ -128,11 +128,17 @@
 > ③ **验证器故意不吃 `ConversionReport`。** `verifyAttributionToken` 收的是 `at` / `expectedProviderId` / `replayGuard` 三个散参数，T5 的商户脚本负责从回报里取 `occurred_at`、`provider_id`、`order_id` 填进去。`at` 必须是**成交时刻**而不是验证时刻——拿「此刻」去比会把迟报一小时的正常成交拒掉，这条有测试盯着。
 > ④ **example server 追加中继跳时没验上游链。** 它只检查 `object_id` 和链结构就联署了。§5.2 让第 N 跳的签名永久覆盖第 1..N−1 跳，所以这等于可能把本节点的名字签在别人的伪造上。README 与源码里都写了这条，T5 若要拿 example 当演示的一环，得先给它配上按 `catalog_id` 取 JWKS 的解析器。
 
+> **T5 交棒给 T6 的四条**：
+> ① **周五六条断言里，第 1 条和第 6 条现在都有现成的东西可调，但它们在两个不同的层。** 第 6 条（同一 `order_id` 只计一次）是 `settleOrder` 的返回值，`examples/typescript/src/settle.ts` 的 CLI 已经把它打出来了；第 1 条的「回报 → 裁决」也是同一个调用。T6 的演示脚本**不要重新实现这两步**——照着 `settle.ts` 调 `settleOrder` 就行，重写一遍会让演示和库各说各话，而演示的全部意义是证明库是对的。
+> ② **`SettlementLedger` 也是内存的，而且这一个管着钱。** 和 `JtiRegistry` 同一个缺口，赌注更大：它是一笔成交和两次打款之间唯一的东西，重启等于把所有历史订单重新放开一次。它**没有过期也没有上限**，这是故意的——已结算的订单不允许老化淘汰。example 里那个 `ledger.json` 只是为了让两次 CLI 调用之间能看出幂等，它在结算**之后**才落盘，崩在中间就是钱动了而去重行没落；T6 演示可以用它，但不要在文档里把它说成可用的持久化方案。
+> ③ **裁决的赢家认领 `jti`，输家不认领。** 第 10 行对每个候选都查（`replayGuard: { claim: false }`），只对赢家写。T6 如果要加一条「同一凭证在两个订单上」的断言，注意它要跑在**赢过一次之后**——一张从没赢过的凭证不会被认领，也就不会报 `replayed_jti`。
+> ④ **`first_touch` 是能跑的，但 §7.4 要求公示。** `settleOrder({ rule: 'first_touch' })` 和 CLI 的第二个参数都支持它。T6 若在演示里切换规则，得同时把「规则必须公示」这句话打出来——一个不公示规则的结算方，代理方没法预测自己的收入，那正是这条规范存在的原因。
+
 ---
 
 ## 4. 节奏与 Definition of Done
 
-沿用既有约定：单一长分支 `crypto-attribution`，commit 前缀用 `T4:` 便于回溯。
+沿用既有约定：单一长分支 `crypto-attribution`，commit 前缀用当前小任务号（如 `T5:`）便于回溯。
 
 | 时点 | 动作 |
 |---|---|

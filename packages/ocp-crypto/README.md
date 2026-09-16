@@ -9,6 +9,7 @@ OCP Catalog 的规范化、签名与密钥发现实现。五块内容：
 | `jwks.ts` | [归因规范 §7.1](../../docs/specs/attribution/v1.md) 第 4 行 | JWKS 加载、`kid` 解析、TTL 缓存 |
 | `attribution.ts` | [归因规范 §4.3 / §5.2 / §5.3 / §5.4](../../docs/specs/attribution/v1.md) | 核心声明、逐跳签名材料、`complete` 重算、链结构校验、origin 签发与 relay 追加 |
 | `verify.ts` | [归因规范 §7.1 / §8](../../docs/specs/attribution/v1.md) | 完整验证器：逐跳验签并定位到跳、`jti` 防重放、有效期与 provider 匹配 |
+| `settlement.ts` | [归因规范 §6 / §7.1 第 11 行 / §7.2 / §7.3](../../docs/specs/attribution/v1.md) | `ConversionReport` 结算：`order_id` 去重、`report_id` 幂等、last-touch 裁决、退款冲正 |
 
 一致性向量在 [`fixtures/canonical/`](./fixtures/canonical/README.md)（75 条），`src/canonical.test.ts` 逐条跑。
 
@@ -137,7 +138,59 @@ else console.log(verdict.settlingCatalogIds, verdict.complete, verdict.lastSigne
 
 保留期是**推导出来的，不是配置项**：条目留到凭证自己的 `exp`。过了那一刻第 9 行本来就会拒掉它，再记住这个 `jti` 也保护不了任何东西。
 
-端到端的样子见 [`examples/typescript`](../../examples/typescript/README.md)——curl 取公钥、关掉节点、离线验通。
+### 结算：从「这张凭证是真的」到「这笔订单付给谁」
+
+`verifyAttributionToken` 判一张凭证。`settleOrder` 判**一笔订单**——几个商户的回报各自带着凭证来争，谁拿钱、以及怎么保证没人拿两次。
+
+```ts
+import { SettlementLedger, JtiRegistry, settleOrder } from '@ocp-catalog/ocp-crypto';
+
+const ledger = new SettlementLedger();
+const jtiRegistry = new JtiRegistry();
+
+const result = await settleOrder({
+  reports,                    // 同一个 order_id 的全部回报
+  resolveKey,
+  ledger,
+  jtiRegistry,
+  rule: 'last_touch',         // 默认；§7.4 允许改成 first_touch，但**必须公示**
+});
+
+if (!result.ok) console.error(result.error.code);           // duplicate_order / replayed_jti / …
+else if (result.action === 'settled') console.log(result.record.agentId, result.record.settlingCatalogIds);
+```
+
+顺序是固定的，每一步都能单独说出理由：
+
+1. **§7.1 第 1–10 行逐条候选跑一遍**，各自按自己回报的 `occurred_at` 和 `provider_id` 判。第 10 行**只读不认领**。
+2. **§7.2 在幸存者里裁决**。`confirmed` 先争；全是 `pending` 就挂起而不是付钱。
+3. **先 `report_id` 幂等，再第 11 行 `duplicate_order`**。
+4. **认领 `jti` 与写账一起落**。
+
+#### `report_id` 和 `order_id` 是两把钥匙，合成一把就一定错
+
+§6.1 给回报两个标识是有分工的：
+
+- `report_id` 是**回报自己的**幂等键。网络会重投，同一份回报到两次必须只结一次、并返回同一个答案。
+- `order_id` 是**结算的**去重键（§7.1 第 11 行）。同一笔订单上换一份新回报，那是第二次认领同一笔成交。
+
+只按其中一把去重：按 `report_id` 就会给每一次重复认领都付钱，按 `order_id` 就会把每一次正常重投拒成 `duplicate_order`。所以顺序也是固定的——幂等在前，第 11 行在后。
+
+#### 输家不认领 `jti`
+
+第 10 行对每个候选都查，只对赢家写。替输家认领会把它的 `jti` 绑到一笔它根本没结算的订单上——那样第一个看到这张凭证的结算方只要让它输一次，就永久花掉了它。
+
+#### 冲正不重开订单
+
+`refunded` / `cancelled` 会把订单记录改成冲正状态，但**不会**让它重新可结算。否则「退款→再确认」就是绕过第 11 行的洗单路径。真的又成交一笔，那是一个新的 `order_id`。
+
+#### `SettlementLedger` 也是内存的，而且这一个管着钱
+
+同 `JtiRegistry` 的缺口，赌注更大：这张 map 是一笔成交和两次打款之间唯一的东西，重启就等于把所有历史订单重新放开一次。替代物是一张在 `order_id` 上**带唯一约束**的表，和打款同一个事务写入——不是在它前面加缓存：插入和打款能分开提交，就存在「钱动了、去重行没落」的窗口，而那正是它要挡的那次重复打款。
+
+它也没有过期和上限，这是故意的：已结算的订单不允许老化淘汰，忘掉一笔就等于放它再结一次。
+
+端到端的样子见 [`examples/typescript`](../../examples/typescript/README.md)——curl 取公钥、关掉节点、离线验通、离线结算。
 
 ## 三条实现决定，改之前先读理由
 
@@ -208,7 +261,7 @@ else console.log(verdict.settlingCatalogIds, verdict.complete, verdict.lastSigne
 
 ## 状态
 
-- ✅ TypeScript：规范化（Level 1）、Ed25519、JWKS、归因签发（origin / relay）与完整验证器
-- ⚠️ `JtiRegistry` 是内存实现，生产必须换成事务性存储（见上）
+- ✅ TypeScript：规范化（Level 1）、Ed25519、JWKS、归因签发（origin / relay）、完整验证器、`ConversionReport` 结算与裁决
+- ⚠️ `JtiRegistry` 与 `SettlementLedger` 都是内存实现，生产必须换成事务性存储（见上）
 - ⏸ Python / Go：backlog。75 条向量语言中立，补实现不会返工（两周计划 §5 已登记这个代价：**两周内只有 TS 能验签**）
 - ⛔ Level 2（完整双精度）：v1 不实现，见规范 §7.4。需要签含金额的对象时，**首选把金额改成最小单位整数**，不是实现 Level 2

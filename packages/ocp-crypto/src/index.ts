@@ -83,6 +83,17 @@ export type {
   VerifyAttributionTokenResult,
 } from './verify';
 
+export { SettlementLedger, adjudicate, settleOrder } from './settlement';
+export type {
+  AdjudicationRule,
+  CandidateOutcome,
+  ConversionReport,
+  ConversionStatus,
+  SettleOrderParams,
+  SettleOrderResult,
+  SettlementRecord,
+} from './settlement';
+
 export {
   ATTRIBUTION_ERROR_CODES,
   AttributionError,

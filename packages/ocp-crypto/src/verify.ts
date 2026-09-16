@@ -182,8 +182,13 @@ export interface VerifyAttributionTokenParams {
   /**
    * §7.1 row 10. Claimed only after every other check has passed, so a token
    * rejected for any other reason does not burn its `jti`.
+   *
+   * `claim: false` checks the row without taking the slot. A settler holding
+   * several candidate tokens for one order must evaluate row 10 on all of them
+   * but claim only the one that wins adjudication (§7.2) — claiming on behalf
+   * of a loser would bind its `jti` to an order it was never settled against.
    */
-  replayGuard?: { registry: JtiRegistry; orderId: string };
+  replayGuard?: { registry: JtiRegistry; orderId: string; claim?: boolean };
 }
 
 export interface AttributionVerdict {
@@ -334,11 +339,13 @@ export async function verifyAttributionToken(
 
   // Row 10 — last, so nothing below can reject a token whose jti we just spent.
   if (replayGuard) {
-    const { registry, orderId } = replayGuard;
-    if (!registry.claim(token.jti, orderId, exp)) {
+    const { registry, orderId, claim = true } = replayGuard;
+    const held = claim ? (registry.claim(token.jti, orderId, exp) ? undefined : registry.orderOf(token.jti))
+                       : registry.orderOf(token.jti);
+    if (held !== undefined && held !== orderId) {
       return fail(
         'replayed_jti',
-        `jti "${token.jti}" is already settled against order "${String(registry.orderOf(token.jti))}", not "${orderId}"`,
+        `jti "${token.jti}" is already settled against order "${held}", not "${orderId}"`,
       );
     }
   }

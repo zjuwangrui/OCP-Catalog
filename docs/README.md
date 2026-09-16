@@ -26,13 +26,14 @@ reference implementation, see the `docs/` directory of the instances repo.
     vectors green. Python / Go not implemented, so cross-language byte agreement
     is asserted by the vectors only, not yet demonstrated.
   - `specs/attribution/v1.md` — **draft**; data model, origin-token issuance,
-    relay chains, and the full §7.1 verifier implemented, end to end through
-    [`examples/typescript`](../examples/typescript/README.md) (curl the public key,
-    stop the node, verify offline). A tampered hop is localised by hop number.
-    Replay detection is in place but **in-memory** (`JtiRegistry`), so it does not
-    survive a restart or span processes — it needs a transactional store before
-    real settlement. `duplicate_order` (row 11) and last-touch adjudication are
-    not implemented yet.
+    relay chains, the full §7.1 verifier, and §6/§7.2 settlement implemented,
+    end to end through [`examples/typescript`](../examples/typescript/README.md)
+    (curl the public key, stop the node, verify offline, settle offline). A
+    tampered hop is localised by hop number; `order_id` dedup (row 11) and
+    last-touch adjudication decide one winner per order. Both dedup stores —
+    `JtiRegistry` (row 10) and `SettlementLedger` (row 11) — are **in-memory**,
+    so they do not survive a restart or span processes and must become
+    transactional rows before real money moves.
 - `proposals/`: in-flight design proposals and implementation plans. Not normative;
   a proposal becomes normative only once it lands under `specs/`.
 

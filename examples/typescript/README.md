@@ -146,6 +146,48 @@ FAIL  key_not_found: hop 1: no JWKS on hand for catalog "cat_upstream_..."
 > not pass), but an outage for a real node. Set `OCP_SIGNING_JWK` to a persisted
 > Ed25519 private JWK to keep the key across restarts.
 
+### Settling: the merchant's side of the loop
+
+Verification says the token is real. Settlement says who gets paid, once.
+`src/settle.ts` is the merchant half — it reads the same artifacts, files a
+`ConversionReport` (§6.1), and runs `settleOrder` from `@ocp-catalog/ocp-crypto`
+against a ledger it keeps in `ledger.json`:
+
+```bash
+bun run settle report .  ord_1 12900 CNY   # build a report from resolve.json
+bun run settle settle .                    # settle it, offline
+```
+
+```text
+SETTLE ord_1  12900 CNY
+       agent:   agent_demo_shopper
+       settles: cat_example_typescript
+       jti:     atr_...  via last_touch
+```
+
+Run the second command again and the answer does not change — it comes back
+`(idempotent replay)`, not a second payout. That is the `report_id` key doing
+its job. File a *different* report against the same `order_id` and you get the
+other half:
+
+```text
+REJECT ord_1  duplicate_order: order "ord_1" was already settled by report "rep_..."
+```
+
+Two reports carrying different tokens for one order are handed to `settleOrder`
+together, and exactly one wins under last-touch (§7.2), with the loser's `jti`
+left unclaimed so it can still settle the order it actually belongs to. Pass
+`first_touch` as the second argument to see §7.4's configurable rule pick the
+other one — a real settler that does this **must publish the rule**, or agents
+cannot predict their income.
+
+> The ledger here is a `Map` written back to `ledger.json` after each run —
+> enough for a retry to land on the same answer across two CLI invocations, and
+> nothing like a real settler. In production it is a table with a unique
+> constraint on `order_id`, written in the same transaction as the payout: a
+> file rewritten after the fact has a window where the payout happened and the
+> dedup row did not.
+
 ## Conformance
 
 `src/server.test.ts` parses every response through the published
