@@ -379,12 +379,70 @@ export const CLI_HELP: CliHelp = {
         },
         {
           name: '--purpose',
-          description: 'Resolve purpose, such as view. Defaults to view.',
+          description: 'Resolve purpose, such as view. Defaults to view. Only checkout is settleable, so only checkout gets an attribution token.',
+        },
+        {
+          name: '--agent-id',
+          description: 'Agent identifier sent as attribution_context.agent_id, asking the Catalog to sign an attribution token. Omit it and the resolve behaves exactly as it did before attribution existed.',
+        },
+        {
+          name: '--upstream-token',
+          description: 'JSON file holding an AttributionToken to relay. The Catalog appends itself as one more hop instead of minting a fresh origin chain.',
+        },
+        {
+          name: '--verify-attribution',
+          description: 'Verify the returned attribution token against the signing node public keys, and check that it is about this object. Defaults to discovering keys from the resolve URL host.',
+        },
+        {
+          name: '--jwks',
+          description: 'Key set for one hop, as <catalog_id>=<file-or-url>. Repeatable; a relayed chain needs one per hop.',
+        },
+        {
+          name: '--discover',
+          description: 'Well-known discovery URL to read catalog_id and jwks_url from. Repeatable.',
         },
         ...clientOptions,
       ],
       examples: [
         'ocp catalog resolve --resolve-url http://localhost:4000/ocp/resolve --entry-id product_123',
+        'ocp catalog resolve --resolve-url http://localhost:4400/ocp/resolve --entry-id product_123 --purpose checkout --agent-id agent_demo --verify-attribution',
+      ],
+    },
+    {
+      command: 'ocp attribution verify <file> [--jwks <catalog_id>=<file-or-url>] [--discover <url>]',
+      domain: 'attribution',
+      action: 'verify',
+      summary: 'Verify an attribution token offline.',
+      description: 'Runs the attribution spec section 7.1 eligibility filter over a token, a resolve response carrying one, or a ConversionReport. Needs only public keys, so it runs with the network unplugged; a failure names the lowest failing hop, which is the tamper site.',
+      options: [
+        {
+          name: '--token',
+          description: 'JSON file holding an AttributionToken, a resolve response, or a ConversionReport. Optional when a positional file is provided.',
+        },
+        {
+          name: '--jwks',
+          description: 'Key set for one hop, as <catalog_id>=<file-or-url>. Repeatable; a relayed chain needs one per hop, and the token lists which ids it needs.',
+        },
+        {
+          name: '--discover',
+          description: 'Well-known discovery URL to read catalog_id and jwks_url from, instead of naming the catalog id by hand. Repeatable.',
+        },
+        {
+          name: '--at',
+          description: 'RFC 3339 moment to judge validity at. Pass the sale time, not the verification time, or a late-reported sale is rejected for being expired. Defaults to now.',
+        },
+        {
+          name: '--provider-id',
+          description: 'Provider the token must have been minted for. Checked as spec section 7.1 row 7.',
+        },
+        {
+          name: '--any-purpose',
+          description: 'Check the cryptography of a non-settleable token. A view token is legitimately signed; it just cannot be settled against.',
+        },
+      ],
+      examples: [
+        'ocp attribution verify ./resolve.json --jwks cat_example_typescript=./jwks.json',
+        'ocp attribution verify ./report.json --discover http://localhost:4400/.well-known/ocp-catalog --at 2026-09-24T10:30:00Z',
       ],
     },
     {
@@ -510,6 +568,11 @@ export const CLI_DOMAINS: Omit<CliDomainHelp, 'commands'>[] = [
     domain: 'validate',
     summary: 'Validate OCP payloads.',
     description: 'Validate commands check local or remote protocol payloads against OCP schemas before they are used by agents or services.',
+  },
+  {
+    domain: 'attribution',
+    summary: 'Verify attribution tokens with public keys only.',
+    description: 'Attribution commands decide whether a settlement claim is real. They need no callback to the issuing Catalog, which is the point: an issuer that had to be online to confirm a token could change its answer after the sale.',
   },
   {
     domain: 'setup',

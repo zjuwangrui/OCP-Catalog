@@ -30,7 +30,9 @@ reference implementation, see the `docs/` directory of the instances repo.
     end to end through [`examples/typescript`](../examples/typescript/README.md)
     (curl the public key, stop the node, verify offline, settle offline). A
     tampered hop is localised by hop number; `order_id` dedup (row 11) and
-    last-touch adjudication decide one winner per order. Both dedup stores —
+    last-touch adjudication decide one winner per order. `ocp attribution verify`
+    and `ocp catalog resolve --verify-attribution` put the same filter behind the
+    CLI, with public keys only. Both dedup stores —
     `JtiRegistry` (row 10) and `SettlementLedger` (row 11) — are **in-memory**,
     so they do not survive a restart or span processes and must become
     transactional rows before real money moves.

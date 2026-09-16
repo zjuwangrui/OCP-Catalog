@@ -188,6 +188,36 @@ cannot predict their income.
 > file rewritten after the fact has a window where the payout happened and the
 > dedup row did not.
 
+### The six assertions
+
+`src/demo.ts` runs the whole thing end to end and prints six lines. Two show it
+works; four show it cannot be fooled:
+
+```bash
+bun run demo                          # in-process, no server needed
+bun run demo http://localhost:4400    # same assertions, over real HTTP
+```
+
+```text
+PASS  1. query → resolve → issue → verify → report → adjudicate, credited to the right catalog
+PASS  2. three-hop chain verifies hop by hop, complete = true
+PASS  3. rewriting agent_id fails verification, localised to the tampered hop
+PASS  4. a token claimed after its exp is rejected
+PASS  5. the same jti claimed against a second order is rejected
+PASS  6. one order_id settles once — a retry is idempotent, a second claim is refused
+```
+
+In a revenue-share setting the last four are the valuable ones. A mechanism that
+only demonstrates the happy path is a mechanism nobody should settle money
+against — assertions 3–6 are each a way for somebody to get paid twice, and the
+script fails loudly if any of them stops holding.
+
+It runs in-process by default because `src/server.ts` exports
+`handle(request): Response` — the whole node minus the socket, the same code
+path a real request takes. Hops 2 and 3 in assertion 2 are signed by two
+throwaway catalogs the script plays itself; they sign with their own keys, so
+nothing in the demo can mint a hop on the node's behalf.
+
 ## Conformance
 
 `src/server.test.ts` parses every response through the published

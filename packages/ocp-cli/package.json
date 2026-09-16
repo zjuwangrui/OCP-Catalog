@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@ocp-catalog/ocp-client": "workspace:*",
+    "@ocp-catalog/ocp-crypto": "workspace:*",
     "@ocp-catalog/ocp-schema": "workspace:*",
     "@ocp-catalog/registration-schema": "workspace:*"
   }

@@ -8,6 +8,7 @@
     "start": "bun run src/server.ts",
     "verify:offline": "bun run src/offline-verify.ts",
     "settle": "bun run src/settle.ts",
+    "demo": "bun run src/demo.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
