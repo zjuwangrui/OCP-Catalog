@@ -29,7 +29,8 @@
     "src/keys.ts",
     "src/settlement.ts",
     "src/verify.ts",
-    "fixtures/canonical"
+    "fixtures/canonical",
+    "fixtures/interop"
   ],
   "publishConfig": {
     "access": "public"

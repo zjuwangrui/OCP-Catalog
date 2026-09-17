@@ -1,0 +1,937 @@
+{
+  "description": "OCP 归因凭证三语言互操作向量：同一把密钥、同一份签发配方，TypeScript / Python / Go 必须产出逐字节相同的凭证，并对同一批反例给出相同的错误码与跳号。",
+  "spec": "docs/specs/attribution/v1.md §4.3 §5.2 §5.3 §5.4 §7.1",
+  "generated_by": "scripts/interop/build-attribution-fixture.mjs",
+  "keys": [
+    {
+      "catalog_id": "cat_interop_origin",
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000001",
+      "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+      "public_jwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "TLWr9q15-_WrvMr8wmnYXNJlHtS4hbWGnyQa7fCluik",
+        "alg": "EdDSA",
+        "use": "sig",
+        "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs"
+      },
+      "private_jwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "TLWr9q15-_WrvMr8wmnYXNJlHtS4hbWGnyQa7fCluik",
+        "alg": "EdDSA",
+        "use": "sig",
+        "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+        "d": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE"
+      }
+    },
+    {
+      "catalog_id": "cat_interop_relay_a",
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000002",
+      "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+      "public_jwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "dCK5iHWYBo4yxESKlJrbKQ0PTjW54BsO5fGh5gD-JnQ",
+        "alg": "EdDSA",
+        "use": "sig",
+        "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c"
+      },
+      "private_jwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "dCK5iHWYBo4yxESKlJrbKQ0PTjW54BsO5fGh5gD-JnQ",
+        "alg": "EdDSA",
+        "use": "sig",
+        "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+        "d": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAI"
+      }
+    },
+    {
+      "catalog_id": "cat_interop_relay_b",
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000003",
+      "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+      "public_jwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "84FibkHnAn6kMb_jAJ6UvdJadGvuxGiUjWw8fF3JpUs",
+        "alg": "EdDSA",
+        "use": "sig",
+        "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY"
+      },
+      "private_jwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "84FibkHnAn6kMb_jAJ6UvdJadGvuxGiUjWw8fF3JpUs",
+        "alg": "EdDSA",
+        "use": "sig",
+        "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+        "d": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM"
+      }
+    }
+  ],
+  "jwks": {
+    "cat_interop_origin": {
+      "keys": [
+        {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "TLWr9q15-_WrvMr8wmnYXNJlHtS4hbWGnyQa7fCluik",
+          "alg": "EdDSA",
+          "use": "sig",
+          "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs"
+        }
+      ]
+    },
+    "cat_interop_relay_a": {
+      "keys": [
+        {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "dCK5iHWYBo4yxESKlJrbKQ0PTjW54BsO5fGh5gD-JnQ",
+          "alg": "EdDSA",
+          "use": "sig",
+          "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c"
+        }
+      ]
+    },
+    "cat_interop_relay_b": {
+      "keys": [
+        {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "84FibkHnAn6kMb_jAJ6UvdJadGvuxGiUjWw8fF3JpUs",
+          "alg": "EdDSA",
+          "use": "sig",
+          "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY"
+        }
+      ]
+    }
+  },
+  "issue": {
+    "core": {
+      "ocp_version": "1.0",
+      "kind": "AttributionToken",
+      "jti": "atr_interop_0000_0000_0000_000000000001",
+      "iss": "cat_interop_origin",
+      "iat": "2026-03-01T12:00:00.000Z",
+      "exp": "2026-03-01T13:00:00.000Z",
+      "agent_id": "agent_interop_matrix",
+      "agent_identity_source": "ocp",
+      "entry_id": "entry_interop_sku-001",
+      "object_id": "obj_interop_sku-001",
+      "provider_id": "provider_interop",
+      "purpose": "checkout"
+    },
+    "hops": [
+      {
+        "catalog_id": "cat_interop_origin",
+        "hop": 1,
+        "role": "origin",
+        "settles": true,
+        "chain_complete": true,
+        "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+        "signed_at": "2026-03-01T12:00:00.000Z"
+      },
+      {
+        "catalog_id": "cat_interop_relay_a",
+        "hop": 2,
+        "role": "relay",
+        "settles": false,
+        "chain_complete": true,
+        "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+        "signed_at": "2026-03-01T12:00:05.000Z"
+      },
+      {
+        "catalog_id": "cat_interop_relay_b",
+        "hop": 3,
+        "role": "relay",
+        "settles": true,
+        "chain_complete": true,
+        "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+        "signed_at": "2026-03-01T12:00:11.000Z"
+      }
+    ],
+    "ttl_seconds": 3600
+  },
+  "expected_signing_input": [
+    "{\"chain\":[{\"alg\":\"EdDSA\",\"catalog_id\":\"cat_interop_origin\",\"chain_complete\":true,\"hop\":1,\"kid\":\"3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs\",\"role\":\"origin\",\"settles\":true,\"signed_at\":\"2026-03-01T12:00:00.000Z\"}],\"core\":{\"agent_id\":\"agent_interop_matrix\",\"agent_identity_source\":\"ocp\",\"entry_id\":\"entry_interop_sku-001\",\"exp\":\"2026-03-01T13:00:00.000Z\",\"iat\":\"2026-03-01T12:00:00.000Z\",\"iss\":\"cat_interop_origin\",\"jti\":\"atr_interop_0000_0000_0000_000000000001\",\"kind\":\"AttributionToken\",\"object_id\":\"obj_interop_sku-001\",\"ocp_version\":\"1.0\",\"provider_id\":\"provider_interop\",\"purpose\":\"checkout\"}}",
+    "{\"chain\":[{\"alg\":\"EdDSA\",\"catalog_id\":\"cat_interop_origin\",\"chain_complete\":true,\"hop\":1,\"kid\":\"3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs\",\"role\":\"origin\",\"settles\":true,\"signed_at\":\"2026-03-01T12:00:00.000Z\"},{\"alg\":\"EdDSA\",\"catalog_id\":\"cat_interop_relay_a\",\"chain_complete\":true,\"hop\":2,\"kid\":\"TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c\",\"role\":\"relay\",\"settles\":false,\"signed_at\":\"2026-03-01T12:00:05.000Z\"}],\"core\":{\"agent_id\":\"agent_interop_matrix\",\"agent_identity_source\":\"ocp\",\"entry_id\":\"entry_interop_sku-001\",\"exp\":\"2026-03-01T13:00:00.000Z\",\"iat\":\"2026-03-01T12:00:00.000Z\",\"iss\":\"cat_interop_origin\",\"jti\":\"atr_interop_0000_0000_0000_000000000001\",\"kind\":\"AttributionToken\",\"object_id\":\"obj_interop_sku-001\",\"ocp_version\":\"1.0\",\"provider_id\":\"provider_interop\",\"purpose\":\"checkout\"}}",
+    "{\"chain\":[{\"alg\":\"EdDSA\",\"catalog_id\":\"cat_interop_origin\",\"chain_complete\":true,\"hop\":1,\"kid\":\"3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs\",\"role\":\"origin\",\"settles\":true,\"signed_at\":\"2026-03-01T12:00:00.000Z\"},{\"alg\":\"EdDSA\",\"catalog_id\":\"cat_interop_relay_a\",\"chain_complete\":true,\"hop\":2,\"kid\":\"TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c\",\"role\":\"relay\",\"settles\":false,\"signed_at\":\"2026-03-01T12:00:05.000Z\"},{\"alg\":\"EdDSA\",\"catalog_id\":\"cat_interop_relay_b\",\"chain_complete\":true,\"hop\":3,\"kid\":\"lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY\",\"role\":\"relay\",\"settles\":true,\"signed_at\":\"2026-03-01T12:00:11.000Z\"}],\"core\":{\"agent_id\":\"agent_interop_matrix\",\"agent_identity_source\":\"ocp\",\"entry_id\":\"entry_interop_sku-001\",\"exp\":\"2026-03-01T13:00:00.000Z\",\"iat\":\"2026-03-01T12:00:00.000Z\",\"iss\":\"cat_interop_origin\",\"jti\":\"atr_interop_0000_0000_0000_000000000001\",\"kind\":\"AttributionToken\",\"object_id\":\"obj_interop_sku-001\",\"ocp_version\":\"1.0\",\"provider_id\":\"provider_interop\",\"purpose\":\"checkout\"}}"
+  ],
+  "expected_token": {
+    "ocp_version": "1.0",
+    "kind": "AttributionToken",
+    "jti": "atr_interop_0000_0000_0000_000000000001",
+    "iss": "cat_interop_origin",
+    "iat": "2026-03-01T12:00:00.000Z",
+    "exp": "2026-03-01T13:00:00.000Z",
+    "agent_id": "agent_interop_matrix",
+    "agent_identity_source": "ocp",
+    "entry_id": "entry_interop_sku-001",
+    "object_id": "obj_interop_sku-001",
+    "provider_id": "provider_interop",
+    "purpose": "checkout",
+    "complete": true,
+    "chain": [
+      {
+        "catalog_id": "cat_interop_origin",
+        "hop": 1,
+        "role": "origin",
+        "settles": true,
+        "chain_complete": true,
+        "alg": "EdDSA",
+        "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+        "signed_at": "2026-03-01T12:00:00.000Z",
+        "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+      },
+      {
+        "catalog_id": "cat_interop_relay_a",
+        "hop": 2,
+        "role": "relay",
+        "settles": false,
+        "chain_complete": true,
+        "alg": "EdDSA",
+        "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+        "signed_at": "2026-03-01T12:00:05.000Z",
+        "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+      },
+      {
+        "catalog_id": "cat_interop_relay_b",
+        "hop": 3,
+        "role": "relay",
+        "settles": true,
+        "chain_complete": true,
+        "alg": "EdDSA",
+        "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+        "signed_at": "2026-03-01T12:00:11.000Z",
+        "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+      }
+    ]
+  },
+  "expected_token_sha256": "sha256:2f689705ec20e12e21bbf82bbe957df8220c1e6264c5eef99b9161fc76e7acd0",
+  "verify": {
+    "at": "2026-03-01T12:30:00.000Z",
+    "expected_provider_id": "provider_interop",
+    "expect": {
+      "ok": true,
+      "complete": true,
+      "hops": 3,
+      "agent_id": "agent_interop_matrix",
+      "settling_catalog_ids": [
+        "cat_interop_origin",
+        "cat_interop_relay_b"
+      ],
+      "last_signed_at": "2026-03-01T12:00:11.000Z"
+    }
+  },
+  "negative": [
+    {
+      "name": "tamper-core-claim",
+      "reason": "改核心声明会破坏所有跳，最低失败跳即篡改点（§5.2）",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-002",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "expected_error": "signature_invalid",
+      "expected_hop": 1
+    },
+    {
+      "name": "tamper-relay-settles",
+      "reason": "中继把自己改成分账方，只破坏它自己及其后继",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "expected_error": "signature_invalid",
+      "expected_hop": 2
+    },
+    {
+      "name": "tamper-last-hop-signature",
+      "reason": "只换最后一跳签名，前两跳仍应通过",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "A4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "expected_error": "signature_invalid",
+      "expected_hop": 3
+    },
+    {
+      "name": "complete-flipped",
+      "reason": "complete 在签名材料之外，必须重算而不是读取（§5.3）",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": false,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "expected_error": "complete_mismatch"
+    },
+    {
+      "name": "chain-renumbered",
+      "reason": "hop 必须是 1..N 连续（§5.4），且结构检查先于任何验签",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 4,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "expected_error": "chain_broken"
+    },
+    {
+      "name": "chain-role-wrong",
+      "reason": "第一跳必须是 origin，其余必须是 relay",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "expected_error": "chain_broken"
+    },
+    {
+      "name": "chain-loop",
+      "reason": "同一 catalog_id 出现两次是环，不是拓扑",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "expected_error": "chain_broken"
+    },
+    {
+      "name": "alg-swapped",
+      "reason": "alg 在签名材料内，但必须在取密钥之前拒绝（算法混淆，§5.1）",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "ES256",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "expected_error": "alg_not_supported",
+      "expected_hop": 2
+    },
+    {
+      "name": "unknown-kid",
+      "reason": "节点发布的密钥集里没有这个 kid",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "kid_not_published",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "expected_error": "key_not_found",
+      "expected_hop": 3
+    },
+    {
+      "name": "purpose-not-settleable",
+      "reason": "view 凭证签名合法，只是不可结算（§7.1 第 6 行）",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000002",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "view",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "5iEJ-CmlJrdTHDCx7YCnMihTe7WcedrF-4RuqeePsLntXaWaPy-Zq-OnWoTSJDm1DTMRBfA2SZ2gjOHvJ0IsCg"
+          }
+        ]
+      },
+      "expected_error": "purpose_not_settleable"
+    },
+    {
+      "name": "provider-mismatch",
+      "reason": "报告与凭证必须指向同一 provider",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "verify_overrides": {
+        "expected_provider_id": "provider_someone_else"
+      },
+      "expected_error": "provider_mismatch"
+    },
+    {
+      "name": "token-not-yet-valid",
+      "reason": "窗口按报告发生时刻判定，不是验签时刻",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "verify_overrides": {
+        "at": "2026-03-01T11:59:59.000Z"
+      },
+      "expected_error": "token_not_yet_valid"
+    },
+    {
+      "name": "token-expired",
+      "reason": "同上，越过 exp",
+      "token": {
+        "ocp_version": "1.0",
+        "kind": "AttributionToken",
+        "jti": "atr_interop_0000_0000_0000_000000000001",
+        "iss": "cat_interop_origin",
+        "iat": "2026-03-01T12:00:00.000Z",
+        "exp": "2026-03-01T13:00:00.000Z",
+        "agent_id": "agent_interop_matrix",
+        "agent_identity_source": "ocp",
+        "entry_id": "entry_interop_sku-001",
+        "object_id": "obj_interop_sku-001",
+        "provider_id": "provider_interop",
+        "purpose": "checkout",
+        "complete": true,
+        "chain": [
+          {
+            "catalog_id": "cat_interop_origin",
+            "hop": 1,
+            "role": "origin",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "3iR-H6Xx_3rpt7eNMUVNazSZkUclb_cekBJZZL4mlUs",
+            "signed_at": "2026-03-01T12:00:00.000Z",
+            "signature": "NLOfmLIWpVrL1hB5dcH_iGd48twB-vnZ9kmhBUrcKx1LHAS7VOPa-YtR6jixxG16L1kCFabhaJVankNiYnmGAA"
+          },
+          {
+            "catalog_id": "cat_interop_relay_a",
+            "hop": 2,
+            "role": "relay",
+            "settles": false,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "TrI1g9her5mzNtdwThUyqwwGfZVLKd3MMoWkRY-Fn8c",
+            "signed_at": "2026-03-01T12:00:05.000Z",
+            "signature": "G-yYIUZuBQxO32uEgUCXk5uxXo7_oz63IadpZhwExK5OIZU9ypaTyrpE6CJsP7_7_qu2DY-eofxWoG0Q-OTIBg"
+          },
+          {
+            "catalog_id": "cat_interop_relay_b",
+            "hop": 3,
+            "role": "relay",
+            "settles": true,
+            "chain_complete": true,
+            "alg": "EdDSA",
+            "kid": "lzuJZs8TRZTS58n4ByWkx4vAw6LpxQO-ykQyDCoMsXY",
+            "signed_at": "2026-03-01T12:00:11.000Z",
+            "signature": "H4GkROy8rn9P9nmBZk9aEqJM0gM9hKmZH0GGSZRsbg_qzITGGyp2lQzN_bRdWXgXgHpKznwlVThuLhyOVS8FAw"
+          }
+        ]
+      },
+      "verify_overrides": {
+        "at": "2026-03-01T13:00:01.000Z"
+      },
+      "expected_error": "token_expired"
+    }
+  ]
+}

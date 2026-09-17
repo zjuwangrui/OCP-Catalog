@@ -42,3 +42,44 @@ go test ./...
 ```
 
 Configuration via env: `CATALOG_ID`, `CATALOG_NAME`, `PORT`, `PUBLIC_BASE_URL`.
+
+## Canonicalization and attribution
+
+`ocpcrypto/` is a standard-library port of
+[`@ocp-catalog/ocp-crypto`](../../packages/ocp-crypto): OCP Canonical JSON v1
+(`canonical.go`, `value.go`), attribution chain verification
+(`attribution.go`) and token issuance (`issue.go`). A Go node can verify an
+attribution token offline, from public keys alone, with nothing installed.
+
+| File | Covers |
+|---|---|
+| `ocpcrypto/canonical.go` | [OCP-JCS v1](../../docs/specs/crypto/canonicalization.md) over wire bytes |
+| `ocpcrypto/value.go` | the same rules over an in-memory value, for the signing side |
+| `ocpcrypto/attribution.go` | [attribution v1](../../docs/specs/attribution/v1.md) §5 signing, §7.1 verification |
+| `ocpcrypto/issue.go` | minting an origin token and appending a relay hop |
+| `interop/` | the Go participant in the cross-language matrix |
+
+`go test ./...` runs all of it, including the 75 shared canonicalization
+vectors in
+[`packages/ocp-crypto/fixtures/canonical/`](../../packages/ocp-crypto/fixtures/canonical)
+and every case in the shared attribution fixture. Those are the same vectors
+the TypeScript and Python implementations run, so a divergence surfaces as a
+test failure here rather than as an unverifiable signature in production.
+
+To drive this implementation directly:
+
+```bash
+go run ./interop selftest             # every fixture assertion Go can make alone
+go run ./interop sign > token.json    # the fixture's issuance recipe
+go run ./interop verify token.json    # §7.1, exits non-zero on rejection
+```
+
+For all nine cells of the three-language matrix, see
+[`scripts/interop/matrix.mjs`](../../scripts/interop/matrix.mjs).
+
+Two Go-specific traps the port exists to avoid, both called out in
+[the fixture README](../../packages/ocp-crypto/fixtures/canonical/README.md):
+`encoding/json` resolves duplicate members last-one-wins, so a decoded value
+can no longer tell you a signature bypass was attempted; and `sort.Strings`
+orders UTF-8 bytes, which disagrees with the spec's UTF-16 code-unit order
+outside the BMP.
