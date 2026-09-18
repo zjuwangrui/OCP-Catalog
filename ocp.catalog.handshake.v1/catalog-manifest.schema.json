@@ -362,6 +362,10 @@
         }
       },
       "additionalProperties": false
+    },
+    "signature": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.crypto.v1/signature-envelope.schema.json",
+      "description": "可选。本 manifest 的签名信封，见 crypto/v1.md。顶层是 additionalProperties: false，因此必须在此声明，否则一份带签名的 manifest 会被校验拒绝。计算 payload_hash 时本成员被移除。"
     }
   },
   "additionalProperties": false

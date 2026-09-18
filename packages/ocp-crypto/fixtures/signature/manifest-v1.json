@@ -1,0 +1,1020 @@
+{
+  "description": "OCP 文档签名一致性向量：同一把密钥、同一份待签文档，TypeScript / Python / Go 必须产出逐字节相同的签名文档，并对同一批反例给出相同的错误码与信任上限。",
+  "spec": "docs/specs/crypto/v1.md §4.1 §5.1 §7 §8 §9 §11",
+  "generated_by": "scripts/interop/build-signature-fixture.mjs",
+  "key": {
+    "catalog_id": "cat_interop_signed",
+    "seed_hex": "0000000000000000000000000000000000000000000000000000000000000011",
+    "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+    "public_jwk": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "TypZ7cg2fetABHzoPuf1znEaV9k6u9qdHOhYjFajzog",
+      "alg": "EdDSA",
+      "use": "sig",
+      "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI"
+    },
+    "private_jwk": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "TypZ7cg2fetABHzoPuf1znEaV9k6u9qdHOhYjFajzog",
+      "alg": "EdDSA",
+      "use": "sig",
+      "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+      "d": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABE"
+    }
+  },
+  "jwks": {
+    "cat_interop_signed": {
+      "keys": [
+        {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "TypZ7cg2fetABHzoPuf1znEaV9k6u9qdHOhYjFajzog",
+          "alg": "EdDSA",
+          "use": "sig",
+          "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI"
+        }
+      ]
+    }
+  },
+  "sign": {
+    "document": {
+      "ocp_version": "1.0",
+      "kind": "CatalogManifest",
+      "id": "manifest_cat_interop_signed",
+      "catalog_id": "cat_interop_signed",
+      "catalog_name": "Interop Signed Catalog",
+      "description": "Fixture manifest for the crypto/v1 signature vectors.",
+      "registry_visibility": "public",
+      "endpoints": {
+        "health": {
+          "url": "https://interop.example/ocp/health",
+          "method": "GET"
+        },
+        "query": {
+          "url": "https://interop.example/ocp/query",
+          "method": "POST"
+        },
+        "resolve": {
+          "url": "https://interop.example/ocp/resolve",
+          "method": "POST"
+        }
+      },
+      "query_capabilities": [
+        {
+          "capability_id": "ocp.interop.product.search.v1",
+          "name": "Keyword product search",
+          "query_packs": [
+            {
+              "pack_id": "ocp.query.keyword.v1",
+              "query_modes": [
+                "keyword"
+              ]
+            }
+          ],
+          "supports_explain": true,
+          "supports_resolve": true
+        }
+      ],
+      "object_contracts": [],
+      "trust_strategy": {
+        "manifest_signed": true,
+        "signature_algorithms": [
+          "EdDSA"
+        ],
+        "downgrade_invalidates_cache": true
+      }
+    },
+    "signed_at": "2026-03-01T12:00:00.000Z",
+    "expiring_document": {
+      "ocp_version": "1.0",
+      "kind": "CatalogManifest",
+      "id": "manifest_cat_interop_signed_expiring",
+      "catalog_id": "cat_interop_signed",
+      "catalog_name": "Interop Signed Catalog",
+      "description": "Fixture manifest for the crypto/v1 signature vectors.",
+      "registry_visibility": "public",
+      "endpoints": {
+        "health": {
+          "url": "https://interop.example/ocp/health",
+          "method": "GET"
+        },
+        "query": {
+          "url": "https://interop.example/ocp/query",
+          "method": "POST"
+        },
+        "resolve": {
+          "url": "https://interop.example/ocp/resolve",
+          "method": "POST"
+        }
+      },
+      "query_capabilities": [
+        {
+          "capability_id": "ocp.interop.product.search.v1",
+          "name": "Keyword product search",
+          "query_packs": [
+            {
+              "pack_id": "ocp.query.keyword.v1",
+              "query_modes": [
+                "keyword"
+              ]
+            }
+          ],
+          "supports_explain": true,
+          "supports_resolve": true
+        }
+      ],
+      "object_contracts": [],
+      "trust_strategy": {
+        "manifest_signed": true,
+        "signature_algorithms": [
+          "EdDSA"
+        ],
+        "downgrade_invalidates_cache": true
+      }
+    },
+    "expiring_expires_at": "2026-03-01T13:00:00.000Z"
+  },
+  "expected_payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+  "expected_signing_input": "{\"alg\":\"EdDSA\",\"issuer\":\"cat_interop_signed\",\"kid\":\"nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI\",\"payload_hash\":\"sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da\",\"signed_at\":\"2026-03-01T12:00:00.000Z\"}",
+  "expected_envelope": {
+    "alg": "EdDSA",
+    "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+    "issuer": "cat_interop_signed",
+    "signed_at": "2026-03-01T12:00:00.000Z",
+    "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+    "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+  },
+  "expected_signed_document": {
+    "ocp_version": "1.0",
+    "kind": "CatalogManifest",
+    "id": "manifest_cat_interop_signed",
+    "catalog_id": "cat_interop_signed",
+    "catalog_name": "Interop Signed Catalog",
+    "description": "Fixture manifest for the crypto/v1 signature vectors.",
+    "registry_visibility": "public",
+    "endpoints": {
+      "health": {
+        "url": "https://interop.example/ocp/health",
+        "method": "GET"
+      },
+      "query": {
+        "url": "https://interop.example/ocp/query",
+        "method": "POST"
+      },
+      "resolve": {
+        "url": "https://interop.example/ocp/resolve",
+        "method": "POST"
+      }
+    },
+    "query_capabilities": [
+      {
+        "capability_id": "ocp.interop.product.search.v1",
+        "name": "Keyword product search",
+        "query_packs": [
+          {
+            "pack_id": "ocp.query.keyword.v1",
+            "query_modes": [
+              "keyword"
+            ]
+          }
+        ],
+        "supports_explain": true,
+        "supports_resolve": true
+      }
+    ],
+    "object_contracts": [],
+    "trust_strategy": {
+      "manifest_signed": true,
+      "signature_algorithms": [
+        "EdDSA"
+      ],
+      "downgrade_invalidates_cache": true
+    },
+    "signature": {
+      "alg": "EdDSA",
+      "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+      "issuer": "cat_interop_signed",
+      "signed_at": "2026-03-01T12:00:00.000Z",
+      "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+      "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+    }
+  },
+  "expected_signed_document_sha256": "sha256:9d5edc1fbacf687578427ae6b19625ebd908c3efd0179079cdc4eb49916467b0",
+  "expected_expiring_signed_document": {
+    "ocp_version": "1.0",
+    "kind": "CatalogManifest",
+    "id": "manifest_cat_interop_signed_expiring",
+    "catalog_id": "cat_interop_signed",
+    "catalog_name": "Interop Signed Catalog",
+    "description": "Fixture manifest for the crypto/v1 signature vectors.",
+    "registry_visibility": "public",
+    "endpoints": {
+      "health": {
+        "url": "https://interop.example/ocp/health",
+        "method": "GET"
+      },
+      "query": {
+        "url": "https://interop.example/ocp/query",
+        "method": "POST"
+      },
+      "resolve": {
+        "url": "https://interop.example/ocp/resolve",
+        "method": "POST"
+      }
+    },
+    "query_capabilities": [
+      {
+        "capability_id": "ocp.interop.product.search.v1",
+        "name": "Keyword product search",
+        "query_packs": [
+          {
+            "pack_id": "ocp.query.keyword.v1",
+            "query_modes": [
+              "keyword"
+            ]
+          }
+        ],
+        "supports_explain": true,
+        "supports_resolve": true
+      }
+    ],
+    "object_contracts": [],
+    "trust_strategy": {
+      "manifest_signed": true,
+      "signature_algorithms": [
+        "EdDSA"
+      ],
+      "downgrade_invalidates_cache": true
+    },
+    "signature": {
+      "alg": "EdDSA",
+      "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+      "issuer": "cat_interop_signed",
+      "signed_at": "2026-03-01T12:00:00.000Z",
+      "expires_at": "2026-03-01T13:00:00.000Z",
+      "payload_hash": "sha256:4d8bdde378bf47ce66b8925fb984430fa270b75123065c9e13201e92f5983145",
+      "signature": "tPII_ZhMHsiaTJo1kvO3RNiwpwP4LFdcEMgfn8pWYGNo5vNkQUMKED19Ax-O06S_F_YSh21Dnhurssei6EB4DQ"
+    }
+  },
+  "verify": {
+    "at": "2026-03-01T12:30:00.000Z",
+    "expect": {
+      "ok": true,
+      "issuer": "cat_interop_signed",
+      "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+      "alg": "EdDSA",
+      "signed_at": "2026-03-01T12:00:00.000Z",
+      "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+      "trust_tier": "verified",
+      "invalidates_cache": false
+    }
+  },
+  "negative": [
+    {
+      "name": "unsigned",
+      "reason": "没有 signature 成员 —— 缺证据不是伪造，缓存保留（§9）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Interop Signed Catalog",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        }
+      },
+      "expected_error": "unsigned",
+      "expected_trust_tier": "unverified",
+      "expected_invalidates_cache": false
+    },
+    {
+      "name": "envelope-missing-kid",
+      "reason": "信封缺字段在取密钥之前拒绝，否则「取哪把钥匙」本身没有答案（§7 步骤 2）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Interop Signed Catalog",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "EdDSA",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+        }
+      },
+      "expected_error": "envelope_malformed",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    },
+    {
+      "name": "envelope-unknown-field",
+      "reason": "未知字段进了签名材料却没被检查，必须拒绝（§5.1）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Interop Signed Catalog",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "EdDSA",
+          "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg",
+          "nbf": "2026-03-01T12:00:00.000Z"
+        }
+      },
+      "expected_error": "envelope_malformed",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    },
+    {
+      "name": "alg-swapped",
+      "reason": "alg 在签名材料内，但必须在取密钥之前拒绝（算法混淆，§7 步骤 3）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Interop Signed Catalog",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "ES256",
+          "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+        }
+      },
+      "expected_error": "alg_not_supported",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    },
+    {
+      "name": "issuer-not-catalog-id",
+      "reason": "issuer 必须等于文档的 catalog_id（§4.4）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Interop Signed Catalog",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "EdDSA",
+          "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+          "issuer": "cat_interop_someone_else",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+        }
+      },
+      "expected_error": "issuer_mismatch",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    },
+    {
+      "name": "payload-one-byte-changed",
+      "reason": "载荷任意一字节被改 —— §11 点名要求的那条，也是 W3-T3 篡改检测的机读形态",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Interop Signed Catalof",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "EdDSA",
+          "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+        }
+      },
+      "expected_error": "payload_mismatch",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    },
+    {
+      "name": "unknown-kid",
+      "reason": "发布的密钥集里没有这个 kid",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Interop Signed Catalog",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "EdDSA",
+          "kid": "kid_not_published",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+        }
+      },
+      "expected_error": "key_not_found",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    },
+    {
+      "name": "signature-one-byte-changed",
+      "reason": "载荷完好、只有签名被改 —— 与 payload_mismatch 分开报，正是两层绑定的目的（§4.2）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Interop Signed Catalog",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "EdDSA",
+          "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+          "signature": "AvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+        }
+      },
+      "expected_error": "signature_invalid",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    },
+    {
+      "name": "signature-expired",
+      "reason": "签名真实，只是过期 —— 缓存保留，信任降到 unverified（§9）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed_expiring",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Interop Signed Catalog",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "EdDSA",
+          "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "expires_at": "2026-03-01T13:00:00.000Z",
+          "payload_hash": "sha256:4d8bdde378bf47ce66b8925fb984430fa270b75123065c9e13201e92f5983145",
+          "signature": "tPII_ZhMHsiaTJo1kvO3RNiwpwP4LFdcEMgfn8pWYGNo5vNkQUMKED19Ax-O06S_F_YSh21Dnhurssei6EB4DQ"
+        }
+      },
+      "verify_overrides": {
+        "at": "2026-03-01T13:00:01.000Z"
+      },
+      "expected_error": "signature_expired",
+      "expected_trust_tier": "unverified",
+      "expected_invalidates_cache": false
+    },
+    {
+      "name": "order-alg-before-payload",
+      "reason": "alg 与载荷同时被改 → 报 alg_not_supported，不是 payload_mismatch（§7.1）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Tampered",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "ES256",
+          "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+        }
+      },
+      "expected_error": "alg_not_supported",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    },
+    {
+      "name": "order-payload-before-key",
+      "reason": "载荷被改且 kid 不存在 → 先算哈希，任意文档都不该把验签方推去发请求（§7 步骤 5）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Tampered",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "EdDSA",
+          "kid": "kid_not_published",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+        }
+      },
+      "expected_error": "payload_mismatch",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    },
+    {
+      "name": "order-expiry-last",
+      "reason": "伪造且过期 → 报 payload_mismatch，把伪造报成过期是把重的说成轻的（§7.1）",
+      "document": {
+        "ocp_version": "1.0",
+        "kind": "CatalogManifest",
+        "id": "manifest_cat_interop_signed_expiring",
+        "catalog_id": "cat_interop_signed",
+        "catalog_name": "Tampered",
+        "description": "Fixture manifest for the crypto/v1 signature vectors.",
+        "registry_visibility": "public",
+        "endpoints": {
+          "health": {
+            "url": "https://interop.example/ocp/health",
+            "method": "GET"
+          },
+          "query": {
+            "url": "https://interop.example/ocp/query",
+            "method": "POST"
+          },
+          "resolve": {
+            "url": "https://interop.example/ocp/resolve",
+            "method": "POST"
+          }
+        },
+        "query_capabilities": [
+          {
+            "capability_id": "ocp.interop.product.search.v1",
+            "name": "Keyword product search",
+            "query_packs": [
+              {
+                "pack_id": "ocp.query.keyword.v1",
+                "query_modes": [
+                  "keyword"
+                ]
+              }
+            ],
+            "supports_explain": true,
+            "supports_resolve": true
+          }
+        ],
+        "object_contracts": [],
+        "trust_strategy": {
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        },
+        "signature": {
+          "alg": "EdDSA",
+          "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
+          "issuer": "cat_interop_signed",
+          "signed_at": "2026-03-01T12:00:00.000Z",
+          "expires_at": "2026-03-01T13:00:00.000Z",
+          "payload_hash": "sha256:4d8bdde378bf47ce66b8925fb984430fa270b75123065c9e13201e92f5983145",
+          "signature": "tPII_ZhMHsiaTJo1kvO3RNiwpwP4LFdcEMgfn8pWYGNo5vNkQUMKED19Ax-O06S_F_YSh21Dnhurssei6EB4DQ"
+        }
+      },
+      "verify_overrides": {
+        "at": "2026-03-01T13:00:01.000Z"
+      },
+      "expected_error": "payload_mismatch",
+      "expected_trust_tier": "unknown",
+      "expected_invalidates_cache": true
+    }
+  ]
+}

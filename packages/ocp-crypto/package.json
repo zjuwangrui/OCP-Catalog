@@ -28,9 +28,11 @@
     "src/jwks.ts",
     "src/keys.ts",
     "src/settlement.ts",
+    "src/signature.ts",
     "src/verify.ts",
     "fixtures/canonical",
-    "fixtures/interop"
+    "fixtures/interop",
+    "fixtures/signature"
   ],
   "publishConfig": {
     "access": "public"

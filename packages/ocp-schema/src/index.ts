@@ -320,6 +320,43 @@ export const federationProfileSchema = z.object({
   },
 });
 
+export const signatureAlgorithmSchema = z.enum(['EdDSA']);
+export const signatureErrorCodeSchema = z.enum([
+  'unsigned',
+  'envelope_malformed',
+  'alg_not_supported',
+  'issuer_mismatch',
+  'payload_mismatch',
+  'key_not_found',
+  'signature_invalid',
+  'signature_expired',
+]);
+
+/**
+ * The signature envelope embedded in a signed OCP document — `docs/specs/crypto/v1.md` §5.
+ *
+ * `.strict()`, unlike the documents it attaches to. The envelope *is* the
+ * signed material: a member a verifier does not recognise still entered the
+ * signature and still went unchecked, which is the worst of both worlds. A
+ * closed field set makes that state unreachable (spec §5.1).
+ *
+ * `payload_hash` is the canonical hash of the document minus this member, and
+ * the signature is over this envelope minus `signature` — two layers, so a
+ * tampered payload and a tampered envelope produce different error codes
+ * (§4.2). Neither is computed here: canonicalization is `ocp-crypto`'s job, and
+ * spec §4.5 forbids hashing `parse()` output at all.
+ */
+export const signatureEnvelopeSchema = z.object({
+  alg: signatureAlgorithmSchema,
+  kid: z.string().min(1),
+  /** The issuing node's `catalog_id`, not a URL (§4.4). */
+  issuer: z.string().min(1),
+  signed_at: z.string().datetime(),
+  expires_at: z.string().datetime().optional(),
+  payload_hash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  signature: z.string().regex(/^[A-Za-z0-9_-]+$/),
+}).strict();
+
 /**
  * `GET /.well-known/ocp-catalog` — the discovery document.
  *
@@ -356,6 +393,18 @@ export const wellKnownCatalogDiscoverySchema = z.object({
    * see `docs/specs/attribution/v1.md` §7.1 row 4.
    */
   jwks_url: z.string().url().optional(),
+  /**
+   * This document's own signature (`docs/specs/crypto/v1.md` §1). Optional:
+   * signing is an incremental capability and an unsigned document stays valid
+   * (spec §10.1).
+   *
+   * Signing the document that *points at* the key set is not circular. The
+   * first fetch is trusted through TLS and the domain, exactly as before; the
+   * signature starts paying from the second one, when this document has been
+   * cached, mirrored, or committed somewhere and can no longer be re-fetched
+   * from the node that wrote it.
+   */
+  signature: signatureEnvelopeSchema.optional(),
 });
 
 export const catalogManifestSchema = z.object({
@@ -385,6 +434,17 @@ export const catalogManifestSchema = z.object({
   }).optional(),
   object_contracts: z.array(objectContractSchema),
   federation: federationProfileSchema.optional(),
+  /**
+   * This manifest's signature (`docs/specs/crypto/v1.md`). Optional, and this
+   * schema is deliberately not `.strict()`, so adding it breaks no consumer.
+   *
+   * Note that `federation.trust_strategy.manifest_signed` sits *inside* the
+   * signed payload, so the claim and the proof are bound together — editing the
+   * claim changes the payload hash. A verifier must still recompute rather than
+   * read the claim (spec §9.1): a manifest asserting `manifest_signed: true`
+   * with no `signature` member here is simply unsigned.
+   */
+  signature: signatureEnvelopeSchema.optional(),
 });
 
 export const providerRegistrationSchema = z.object({
@@ -844,3 +904,6 @@ export type ConversionReport = z.infer<typeof conversionReportSchema>;
 export type AttributionErrorCode = z.infer<typeof attributionErrorCodeSchema>;
 export type AgentIdentitySource = z.infer<typeof agentIdentitySourceSchema>;
 export type ConversionStatus = z.infer<typeof conversionStatusSchema>;
+export type SignatureEnvelope = z.infer<typeof signatureEnvelopeSchema>;
+export type SignatureAlgorithm = z.infer<typeof signatureAlgorithmSchema>;
+export type SignatureErrorCode = z.infer<typeof signatureErrorCodeSchema>;

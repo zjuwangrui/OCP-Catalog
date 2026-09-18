@@ -124,6 +124,39 @@ export function assertEd25519PublicJwk(candidate: unknown, what = 'JWK'): Ed2551
   return jwk as unknown as Ed25519PublicJwk;
 }
 
+/**
+ * Picks the verification key with this `kid` out of a JWKS document.
+ *
+ * Shared by the attribution verifier and the document-signature verifier so
+ * that "I could not find the key" means the same thing, and produces the same
+ * message, in both. `owner` is the `catalog_id` whose key set this is, and only
+ * appears in the error text.
+ *
+ * Throws `key_not_found` both when the `kid` is absent and when the JWKS itself
+ * is not in hand. It does **not** distinguish "the node has no such key" from
+ * "we hold no key set for that node" — a caller that needs that distinction
+ * must check before calling, as `packages/ocp-cli/src/attribution.ts` does,
+ * because the fix for one is a dispute and the fix for the other is a flag.
+ */
+export function selectVerificationKey(
+  jwks: { keys?: unknown } | undefined,
+  kid: string,
+  owner: string,
+): Ed25519PublicJwk {
+  const keys = jwks && Array.isArray(jwks.keys) ? (jwks.keys as unknown[]) : undefined;
+  if (!keys) {
+    throw new CryptoError('key_not_found', `no JWKS on hand for catalog "${owner}"`);
+  }
+  const match = keys.find(
+    (key): key is Record<string, unknown> =>
+      typeof key === 'object' && key !== null && (key as Record<string, unknown>).kid === kid,
+  );
+  if (!match) {
+    throw new CryptoError('key_not_found', `kid "${kid}" is not in the JWKS of "${owner}"`);
+  }
+  return assertEd25519PublicJwk(match);
+}
+
 function publicKeyObject(jwk: Ed25519PublicJwk): KeyObject {
   const raw = fromBase64Url(jwk.x, 'JWK.x');
   return createPublicKey({

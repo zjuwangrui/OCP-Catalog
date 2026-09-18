@@ -28,6 +28,7 @@ export {
   generateEd25519KeyPair,
   jwkThumbprint,
   publicJwkOf,
+  selectVerificationKey,
   signBytes,
   signCanonical,
   toBase64Url,
@@ -95,11 +96,40 @@ export type {
 } from './settlement';
 
 export {
+  SIGNATURE_MEMBER,
+  documentPayload,
+  documentPayloadHash,
+  signDocument,
+  signatureSigningBytes,
+  signatureSigningInput,
+  staticDocumentKeyResolver,
+  trustCeilingFor,
+  verifyDocumentSignature,
+} from './signature';
+export type {
+  DocumentKeyResolver,
+  SignDocumentParams,
+  SignatureEnvelope,
+  SignatureVerdict,
+  SignedDocument,
+  UnsignedSignatureEnvelope,
+  VerifyDocumentSignatureParams,
+  VerifyDocumentSignatureResult,
+} from './signature';
+
+export {
   ATTRIBUTION_ERROR_CODES,
   AttributionError,
   CanonicalError,
   CryptoError,
+  SIGNATURE_ERROR_CODES,
   SPEC_CANONICAL_ERROR_CODES,
+  SignatureError,
   errorCodeOf,
 } from './errors';
-export type { AttributionErrorCode, CanonicalErrorCode, CryptoErrorCode } from './errors';
+export type {
+  AttributionErrorCode,
+  CanonicalErrorCode,
+  CryptoErrorCode,
+  SignatureErrorCode,
+} from './errors';

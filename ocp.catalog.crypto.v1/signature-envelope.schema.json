@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocp.dev/schema/ocp.catalog.crypto.v1/signature-envelope.schema.json",
+  "title": "SignatureEnvelope",
+  "description": "附着在被签 OCP 文档上的签名信封，作为该文档的 signature 成员内嵌。签名盖在本信封（去掉 signature 字段）的 canonical 字节上，信封再经 payload_hash 指向被签载荷。见 crypto/v1.md §4。",
+  "type": "object",
+  "required": ["alg", "kid", "issuer", "signed_at", "payload_hash", "signature"],
+  "properties": {
+    "alg": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.crypto.v1/common.schema.json#/$defs/SignatureAlgorithm"
+    },
+    "kid": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.crypto.v1/common.schema.json#/$defs/KeyId"
+    },
+    "issuer": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.crypto.v1/common.schema.json#/$defs/Identifier",
+      "description": "签发节点的 catalog_id，必须等于被签文档的 catalog_id。刻意不是 URL：再引入一个 URL 身份空间就要处理别名，而每一种别名写法都会产生不同的签名。见 crypto/v1.md §4.4。"
+    },
+    "signed_at": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.crypto.v1/common.schema.json#/$defs/Timestamp",
+      "description": "签名时刻。在签名材料内，因此回放一份旧文档时无法把时间改成现在。"
+    },
+    "expires_at": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.crypto.v1/common.schema.json#/$defs/Timestamp",
+      "description": "可选。签名有效期终点，缺省表示不过期。写了就必须检查。见 crypto/v1.md §5.3。"
+    },
+    "payload_hash": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.crypto.v1/common.schema.json#/$defs/PayloadHash",
+      "description": "被签文档删去 signature 成员后，其 OCP-JCS v1 输出的 SHA-256。禁止对 Zod parse() 结果计算——默认值注入会使签名方与验签方每次都验不过。见 crypto/v1.md §4.5。"
+    },
+    "signature": {
+      "$ref": "https://ocp.dev/schema/ocp.catalog.crypto.v1/common.schema.json#/$defs/Signature",
+      "description": "对 OCP-JCS-v1(本信封删去 signature 字段) 的 Ed25519 签名。计算签名材料时本字段被移除。"
+    }
+  },
+  "additionalProperties": false
+}

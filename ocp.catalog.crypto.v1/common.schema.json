@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocp.dev/schema/ocp.catalog.crypto.v1/common.schema.json",
+  "$defs": {
+    "Identifier": {
+      "type": "string",
+      "minLength": 1
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "SignatureAlgorithm": {
+      "type": "string",
+      "enum": ["EdDSA"],
+      "description": "v1 只接受 Ed25519。算法值在签名材料内，防止算法混淆攻击；单元素枚举使降级协商无从发生。见 crypto/v1.md §5.2。"
+    },
+    "KeyId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "JWKS 中的 kid。应当取该公钥的 RFC 7638 thumbprint，使两把不同的密钥不可能共用一个标识。"
+    },
+    "Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "description": "base64url（无填充）编码的 Ed25519 签名。禁止填充与标准字母表——同一签名的两种合法写法即签名可锻造性。"
+    },
+    "PayloadHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "canonical 字节的 SHA-256，表示形式见 canonicalization.md §10。禁止省略前缀、禁止大写十六进制、禁止 base64。"
+    },
+    "SignatureErrorCode": {
+      "type": "string",
+      "enum": [
+        "unsigned",
+        "envelope_malformed",
+        "alg_not_supported",
+        "issuer_mismatch",
+        "payload_mismatch",
+        "key_not_found",
+        "signature_invalid",
+        "signature_expired"
+      ],
+      "description": "验签失败的稳定取值，见 crypto/v1.md §8。实现必须对同一份坏文档给出同一个码。"
+    }
+  }
+}

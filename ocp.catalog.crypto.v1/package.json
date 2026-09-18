@@ -1,0 +1,10 @@
+{
+  "name": "ocp.catalog.crypto.v1",
+  "version": "0.1.0",
+  "description": "OCP Catalog Crypto v1 schema package: the signature envelope embedded in signed OCP documents.",
+  "type": "module",
+  "files": [
+    "*.schema.json",
+    "README.md"
+  ]
+}

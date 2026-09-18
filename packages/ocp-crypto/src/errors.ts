@@ -146,9 +146,55 @@ export class AttributionError extends Error {
   }
 }
 
+/**
+ * Document signature failures — the eight codes of `docs/specs/crypto/v1.md` §8.
+ *
+ * `alg_not_supported` and `key_not_found` are spelled identically to
+ * {@link CryptoErrorCode} on purpose, same as attribution does: the verifier
+ * re-emits the key layer's codes rather than inventing parallel names for the
+ * same condition.
+ *
+ * `unsigned` is separate from `envelope_malformed` because the two lead to
+ * opposite operational actions — one means "ask them when they plan to start
+ * signing", the other means "their signer is broken". Neither is evidence of
+ * forgery; §8's table marks which codes are.
+ */
+export type SignatureErrorCode =
+  | 'unsigned'
+  | 'envelope_malformed'
+  | 'alg_not_supported'
+  | 'issuer_mismatch'
+  | 'payload_mismatch'
+  | 'key_not_found'
+  | 'signature_invalid'
+  | 'signature_expired';
+
+/** §8's full set, in §7's fixed verification order. */
+export const SIGNATURE_ERROR_CODES: readonly SignatureErrorCode[] = [
+  'unsigned',
+  'envelope_malformed',
+  'alg_not_supported',
+  'issuer_mismatch',
+  'payload_mismatch',
+  'key_not_found',
+  'signature_invalid',
+  'signature_expired',
+];
+
+export class SignatureError extends Error {
+  readonly code: SignatureErrorCode;
+
+  constructor(code: SignatureErrorCode, message: string, options?: ErrorOptions) {
+    super(`[${code}] ${message}`, options);
+    this.name = 'SignatureError';
+    this.code = code;
+  }
+}
+
 /** Reads the stable code off a thrown value, for tests and error mapping. */
 export function errorCodeOf(err: unknown): string | undefined {
   if (err instanceof CanonicalError || err instanceof CryptoError) return err.code;
   if (err instanceof AttributionError) return err.code;
+  if (err instanceof SignatureError) return err.code;
   return undefined;
 }

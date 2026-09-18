@@ -21,10 +21,18 @@ reference implementation, see the `docs/` directory of the instances repo.
 - `specs/`: protocol specifications.
   - `specs/registration/v1.md` — **stable**
   - `specs/handshake/v1.md` — **stable**
-  - `specs/crypto/canonicalization.md` — **draft**; TypeScript implementation in
-    [`packages/ocp-crypto`](../packages/ocp-crypto/README.md), all 75 conformance
-    vectors green. Python / Go not implemented, so cross-language byte agreement
-    is asserted by the vectors only, not yet demonstrated.
+  - `specs/crypto/canonicalization.md` — **draft**; implemented in TypeScript
+    ([`packages/ocp-crypto`](../packages/ocp-crypto/README.md)), Python
+    ([`examples/python/ocp_canonical.py`](../examples/python/ocp_canonical.py))
+    and Go ([`examples/go/ocpcrypto/canonical.go`](../examples/go/ocpcrypto/canonical.go)),
+    all 75 conformance vectors green in all three. Cross-language byte agreement
+    is demonstrated, not just asserted, by the 3×3 interop matrix.
+  - `specs/crypto/v1.md` — **draft**; document signing. The envelope rides inside
+    the document as its `signature` member (§2), binding is two layers (§4.1) so
+    a tampered payload and a tampered envelope are different findings, and §7
+    fixes the eight-step verification order. Implemented in
+    [`packages/ocp-crypto`](../packages/ocp-crypto/README.md) with the §11
+    vectors under `fixtures/signature/`. Python / Go ports not written yet.
   - `specs/attribution/v1.md` — **draft**; data model, origin-token issuance,
     relay chains, the full §7.1 verifier, and §6/§7.2 settlement implemented,
     end to end through [`examples/typescript`](../examples/typescript/README.md)
@@ -40,8 +48,11 @@ reference implementation, see the `docs/` directory of the instances repo.
   a proposal becomes normative only once it lands under `specs/`.
 
 The machine-readable JSON Schemas for these protocols live at the repository root
-in `ocp.catalog.registration.v1/`, `ocp.catalog.handshake.v1/`, and
-`ocp.catalog.attribution.v1/`.
+in `ocp.catalog.registration.v1/`, `ocp.catalog.handshake.v1/`,
+`ocp.catalog.attribution.v1/`, and `ocp.catalog.crypto.v1/`. The last one holds
+the `SignatureEnvelope` that the other packages reference rather than redeclare —
+one definition of a signature, so the manifest and the discovery document cannot
+drift apart on what a signature is.
 
 ## Protocol Notes
 

@@ -23,7 +23,7 @@ import {
   type ChainNode,
 } from './attribution';
 import { AttributionError, CryptoError } from './errors';
-import { assertEd25519PublicJwk, OCP_SIGNATURE_ALG, type Ed25519PublicJwk } from './keys';
+import { OCP_SIGNATURE_ALG, selectVerificationKey, type Ed25519PublicJwk } from './keys';
 import type { JwksCache } from './jwks';
 
 /**
@@ -54,21 +54,7 @@ export type AttributionKeyResolver = (params: {
 export function staticKeyResolver(
   jwksByCatalogId: Readonly<Record<string, { keys?: unknown } | undefined>>,
 ): AttributionKeyResolver {
-  return ({ catalogId, kid }) => {
-    const jwks = jwksByCatalogId[catalogId];
-    const keys = jwks && Array.isArray(jwks.keys) ? (jwks.keys as unknown[]) : undefined;
-    if (!keys) {
-      throw new CryptoError('key_not_found', `no JWKS on hand for catalog "${catalogId}"`);
-    }
-    const match = keys.find(
-      (key): key is Record<string, unknown> =>
-        typeof key === 'object' && key !== null && (key as Record<string, unknown>).kid === kid,
-    );
-    if (!match) {
-      throw new CryptoError('key_not_found', `kid "${kid}" is not in the JWKS of "${catalogId}"`);
-    }
-    return assertEd25519PublicJwk(match);
-  };
+  return ({ catalogId, kid }) => selectVerificationKey(jwksByCatalogId[catalogId], kid, catalogId);
 }
 
 /** A resolver backed by the TTL cache, for a verifier that is allowed online. */
