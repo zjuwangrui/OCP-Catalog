@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **待开工** |
+| 状态 | **进行中**——T1 已完成（2026-09-18） |
 | 版本 | v1.0 |
 | 日期 | 2026-09-18 |
 | 起止 | **2026-09-21（周一）– 2026-10-09（周五）**，10 个工作日（跨国庆，见下） |
@@ -58,11 +58,17 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 
 | 小任务 | 天 | 内容 | 完成判据 |
 |---|---|---|---|
-| **T1**（原 W3-T2） | 09-21 / 22 | ① `examples/typescript` 用已有的 `SIGNING_KEY` 签发 signed manifest<br>② `federation.trust_strategy.{manifest_signed, signature_algorithms, trust_tier}` 真实填充<br>③ `/.well-known/ocp-catalog` 的 discovery 文档同样签发（schema 已留好可选 `signature`） | manifest 与 discovery 同时通过 **JSON Schema 与 Zod 两侧**校验；`server.test.ts` 新增断言：取到公钥后**离线**验通 |
+| **T1**（原 W3-T2） ✅ | 09-21 / 22 | ① `examples/typescript` 用已有的 `SIGNING_KEY` 签发 signed manifest<br>② `federation.trust_strategy.{manifest_signed, signature_algorithms}` 真实填充<br>③ `/.well-known/ocp-catalog` 的 discovery 文档同样签发（schema 已留好可选 `signature`） | manifest 与 discovery 同时通过 **JSON Schema 与 Zod 两侧**校验；`server.test.ts` 新增断言：取到公钥后**离线**验通 |
 | **T2**（原 W3-T3） | 09-23 / 24 | CLI `ocp catalog inspect --verify` + 篡改检测 | 正例退出码 `0`；**篡改任意一字节 → 退出码非 0**；§8 八个错误码都能从 CLI 输出里读到，不是一句「验签失败」 |
 | **T3**（原 W4-T3 ②③） | 09-25 | ① `CatalogRouteHint.trust_profile` 填 `manifest_hash` / `issuer` / `signature_alg`<br>② 降级语义：验签失败 → `trust_tier` 降级 → 触发既有 `downgrade_invalidates_cache` | 一份被篡改的 manifest 让路由提示从 `verified` 掉到 `unknown` **且缓存被作废**，有测试；`unsigned` / `signature_expired` 掉到 `unverified` **且缓存保留** |
 
 > **T1 的坑**：`trust_strategy` 在 `federation` 里面，不在 manifest 顶层。写在顶层时 Zod 照收（非 `.strict()`），JSON Schema 拒收（顶层 `additionalProperties: false`）——两边口径差正好把这个错藏住。W3-T1 的向量已经踩过一次。
+
+> **T1 交付时的一处偏离（2026-09-18）**：原计划第 ② 项含 `trust_tier`，**实际没填**。
+> 这个字段是节点写给自己的信任等级，而签名存在的全部理由就是取代自述——等级由验签方按
+> 规范 §9 的 `trustCeilingFor()` 算出来，写在被验的文档里既不增加信息也不会被采信。
+> 另两项（`manifest_signed` / `signature_algorithms`）照填，它们描述的是节点**做了什么**，
+> 旁边的签名让这两句话可被检验。T3 落 `trust_profile` 时按这个口径走：等级是验签的结论，不是声明。
 
 > **T2 的坑**：`packages/ocp-cli` 的验签逻辑必须照 `attribution.ts` 的形态写成**纯模块**，不 import `@ocp-catalog/ocp-client` 也不 import `node:fs`，I/O 归调用方。否则它在 `--experimental-strip-types` 下跑不起来（client 用了构造函数参数属性），测试就跑不了。
 
@@ -154,7 +160,7 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 
 | ID | 日期 | 任务 | 天 | 完成判据 |
 |---|---|---|---|---|
-| T1 | 09-21/22 | 节点签发 signed manifest + discovery | 2 | 两侧 schema 校验通过，离线验通 |
+| T1 ✅ | 09-21/22 | 节点签发 signed manifest + discovery | 2 | 两侧 schema 校验通过，离线验通 |
 | T2 | 09-23/24 | `ocp catalog inspect --verify` + 篡改检测 | 2 | 篡改一字节退出码非 0 |
 | T3 | 09-25 | `trust_profile` 落地 + 降级语义 | 1 | 降级触发缓存作废，有测试 |
 | T4 | 09-28/29 | Python + Go 文档签名 + 3×3 矩阵 | 2 | **9 格全绿**，反例同码同信任上限 |

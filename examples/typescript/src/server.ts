@@ -5,9 +5,9 @@
  * vendor client, and no auth. It is the smallest thing that answers the OCP
  * Catalog read surface:
  *
- *   GET  /.well-known/ocp-catalog   discovery
+ *   GET  /.well-known/ocp-catalog   discovery（已签名）
  *   GET  /.well-known/jwks.json     the node's public signing keys
- *   GET  /ocp/manifest              capabilities
+ *   GET  /ocp/manifest              capabilities（已签名）
  *   GET  /ocp/health                liveness
  *   GET  /ocp/contracts             object contracts (empty — read-only node)
  *   POST /ocp/query                 keyword search over products
@@ -16,7 +16,12 @@
  * The response shapes match @ocp-catalog/ocp-schema; see server.test.ts, which
  * parses every response through those schemas to prove conformance.
  */
-import { appendRelayHop, issueOriginToken, type AttributionToken } from '@ocp-catalog/ocp-crypto';
+import {
+  appendRelayHop,
+  issueOriginToken,
+  signDocument,
+  type AttributionToken,
+} from '@ocp-catalog/ocp-crypto';
 import { PRODUCTS, type Product } from './products';
 import { SIGNING_KEY, jwkSet } from './signing-key';
 
@@ -35,7 +40,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function wellKnownDiscovery() {
+function discoveryPayload() {
   return {
     ocp_version: '1.0',
     kind: 'WellKnownCatalogDiscovery',
@@ -53,7 +58,7 @@ function wellKnownDiscovery() {
   };
 }
 
-function manifest() {
+function manifestPayload() {
   return {
     ocp_version: '1.0',
     kind: 'CatalogManifest',
@@ -86,8 +91,55 @@ function manifest() {
     ],
     // Required by the schema even for a read-only node that ingests nothing.
     object_contracts: [],
+    /**
+     * Signing is not a federation feature, but `trust_strategy` lives under
+     * `federation` — both this object and the manifest's top level are
+     * `additionalProperties: false`, so the declaration has to go here.
+     *
+     * `trust_tier` is deliberately absent. The schema allows a node to write
+     * `verified` about itself, and a self-asserted tier is precisely the thing
+     * a signature exists to replace: whoever verifies the signature below
+     * decides the tier (`trustCeilingFor()`, crypto/v1 §9). The two booleans
+     * are different — they describe what this node *does*, and the signature
+     * on this very document makes them checkable rather than claimed.
+     */
+    federation: {
+      mode: 'disabled',
+      node_role: 'source_catalog',
+      trust_strategy: {
+        manifest_signed: true,
+        signature_algorithms: ['EdDSA'],
+        downgrade_invalidates_cache: true,
+      },
+    },
   };
 }
+
+/**
+ * Both documents are signed once, at startup, rather than per request.
+ *
+ * They are static — every member derives from an environment variable read at
+ * module load — so re-signing per request would only jitter `signed_at` and
+ * burn a signature per hit. A cached copy stays verifiable for as long as the
+ * key does, which is the whole point of signing the document rather than the
+ * transport.
+ *
+ * No `expires_at`: it is optional (crypto/v1 §5.3), and this example's key is
+ * ephemeral unless `OCP_SIGNING_JWK` is set. A real node that rotates keys
+ * should set one shorter than its rotation window, so a document cannot
+ * outlive the key that proves it.
+ */
+const SIGNED_DISCOVERY = signDocument({
+  document: discoveryPayload(),
+  privateJwk: SIGNING_KEY.privateJwk,
+  kid: SIGNING_KEY.kid,
+});
+
+const SIGNED_MANIFEST = signDocument({
+  document: manifestPayload(),
+  privateJwk: SIGNING_KEY.privateJwk,
+  kid: SIGNING_KEY.kid,
+});
 
 function health() {
   return {
@@ -331,9 +383,9 @@ export async function handle(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
   const { method } = request;
 
-  if (method === 'GET' && pathname === '/.well-known/ocp-catalog') return json(wellKnownDiscovery());
+  if (method === 'GET' && pathname === '/.well-known/ocp-catalog') return json(SIGNED_DISCOVERY);
   if (method === 'GET' && pathname === '/.well-known/jwks.json') return json(jwkSet());
-  if (method === 'GET' && pathname === '/ocp/manifest') return json(manifest());
+  if (method === 'GET' && pathname === '/ocp/manifest') return json(SIGNED_MANIFEST);
   if (method === 'GET' && pathname === '/ocp/health') return json(health());
   if (method === 'GET' && pathname === '/ocp/contracts') return json(contracts());
   if (method === 'POST' && pathname === '/ocp/query') return json(query(await readJson(request)));

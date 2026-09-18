@@ -31,6 +31,42 @@ curl -X POST http://localhost:4400/ocp/resolve -H 'content-type: application/jso
 | POST | `/ocp/query` | keyword search over products |
 | POST | `/ocp/resolve` | resolve one entry into action bindings |
 
+## Signed documents
+
+The manifest and the discovery document each carry a
+[`SignatureEnvelope`](../../docs/specs/crypto/v1.md): this node signs what it
+says about itself, so a cached or mirrored copy stays checkable after the fact.
+
+```bash
+curl -s http://localhost:4400/ocp/manifest | jq .signature
+```
+
+That turns two members of `federation.trust_strategy` from claims into facts:
+
+| Member | Value | What makes it checkable |
+|---|---|---|
+| `manifest_signed` | `true` | the envelope next to it — a lie here fails verification |
+| `signature_algorithms` | `["EdDSA"]` | `signature.alg`, which is inside the signed material |
+
+`trust_tier` is deliberately **not** set. The schema lets a node call itself
+`verified`, and a self-declared tier is the exact thing a signature exists to
+replace — the tier belongs to whoever checked the signature (spec §9), not to
+whoever wrote the document. Both documents are signed once at startup: every
+member of them comes from an environment variable, so re-signing per request
+would only move `signed_at`.
+
+Verifying them needs no more than the key set, and works with the node stopped:
+
+```bash
+curl -s http://localhost:4400/.well-known/jwks.json > jwks.json
+curl -s http://localhost:4400/ocp/manifest          > manifest.json
+```
+
+Verify the bytes you received — not the output of a schema `parse()`. Defaults
+injected during parsing change the document, and a changed document fails as
+`payload_mismatch`, which reads exactly like tampering (spec §4.5).
+`src/server.test.ts` pins that trap as an assertion.
+
 ## Attribution
 
 This node signs [attribution tokens](../../docs/specs/attribution/v1.md). Resolve

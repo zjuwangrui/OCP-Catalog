@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 import {
   catalogHealthResponseSchema,
   catalogManifestSchema,
   catalogQueryResultSchema,
   resolvableReferenceSchema,
+  signatureEnvelopeSchema,
   wellKnownCatalogDiscoverySchema,
 } from '@ocp-catalog/ocp-schema';
 import {
@@ -12,8 +14,11 @@ import {
   generateEd25519KeyPair,
   issueOriginToken,
   publicJwkOf,
+  staticDocumentKeyResolver,
   staticKeyResolver,
+  trustCeilingFor,
   verifyAttributionToken,
+  verifyDocumentSignature,
   type AttributionToken,
 } from '@ocp-catalog/ocp-crypto';
 import { handle } from './server';
@@ -91,6 +96,122 @@ describe('minimal TypeScript OCP Catalog Node', () => {
   test('resolve of an unknown entry returns 404', async () => {
     const res = await post('/ocp/resolve', { entry_id: 'entry_example_inmemory_nope' });
     expect(res.status).toBe(404);
+  });
+});
+
+const MANIFEST_SCHEMA_URL = new URL(
+  '../../../ocp.catalog.handshake.v1/catalog-manifest.schema.json',
+  import.meta.url,
+);
+
+interface SchemaNode {
+  $ref?: string;
+  type?: string;
+  properties?: Record<string, SchemaNode>;
+  items?: SchemaNode;
+  required?: string[];
+  additionalProperties?: boolean;
+}
+
+/**
+ * Every member the JSON Schema has not declared, at every depth it closes.
+ *
+ * `catalog-manifest.schema.json` says `additionalProperties: false` on its top
+ * level, on `federation`, and on `trust_strategy`; `catalogManifestSchema` is
+ * not `.strict()`. So Zod accepts a member written at the wrong level and JSON
+ * Schema rejects it — the gap between the two is exactly wide enough to hide a
+ * manifest no node can publish. Checking member names here is not a full JSON
+ * Schema validation (there is no validator in this workspace), but it is the
+ * one rule Zod does not cover.
+ *
+ * Stops at `$ref`: the member itself is declared, and what is behind the
+ * reference belongs to the schema that defines it.
+ */
+function undeclaredMembers(value: unknown, schema: SchemaNode, path = ''): string[] {
+  if (schema.$ref !== undefined || value === null || typeof value !== 'object') return [];
+  if (Array.isArray(value)) {
+    if (!schema.items) return [];
+    return value.flatMap((item, i) => undeclaredMembers(item, schema.items!, `${path}[${i}]`));
+  }
+  const declared = schema.properties ?? {};
+  const record = value as Record<string, unknown>;
+  const found = schema.additionalProperties === false
+    ? Object.keys(record).filter((key) => !(key in declared)).map((key) => `${path}${path && '.'}${key}`)
+    : [];
+  return Object.entries(record).flatMap(([key, member]) =>
+    declared[key] ? undeclaredMembers(member, declared[key], `${path}${path && '.'}${key}`) : [],
+  ).concat(found);
+}
+
+describe('manifest 与 discovery 的签名（T1）', () => {
+  const manifestSchema = JSON.parse(readFileSync(MANIFEST_SCHEMA_URL, 'utf8')) as SchemaNode & {
+    required: string[];
+  };
+
+  const jwks = async () => (await body(await get('/.well-known/jwks.json'))) as { keys: unknown[] };
+
+  test('manifest 带签名信封，且 JSON Schema 与 Zod 两侧都收', async () => {
+    const raw = (await body(await get('/ocp/manifest'))) as Record<string, unknown>;
+    // Zod 侧。
+    catalogManifestSchema.parse(raw);
+    // JSON Schema 侧：成员名与必填项。
+    expect(undeclaredMembers(raw, manifestSchema)).toEqual([]);
+    expect(manifestSchema.required.filter((key) => !(key in raw))).toEqual([]);
+    // 信封是 `.strict()` 的，所以这一条真的把信封关死了。
+    expect(signatureEnvelopeSchema.parse(raw.signature).issuer).toBe(raw.catalog_id);
+  });
+
+  test('trust_strategy 是可检验的事实，不是自述的 trust_tier', async () => {
+    const raw = (await body(await get('/ocp/manifest'))) as {
+      federation: { trust_strategy: Record<string, unknown> };
+    };
+    const strategy = raw.federation.trust_strategy;
+    expect(strategy.manifest_signed).toBe(true);
+    expect(strategy.signature_algorithms).toEqual(['EdDSA']);
+    // 自己给自己发的 trust_tier 正是签名要取代的东西：等级由验签方算（crypto/v1 §9）。
+    expect('trust_tier' in strategy).toBe(false);
+  });
+
+  test('discovery 带签名信封，Zod 侧通过', async () => {
+    const raw = (await body(await get('/.well-known/ocp-catalog'))) as Record<string, unknown>;
+    const parsed = wellKnownCatalogDiscoverySchema.parse(raw);
+    expect(parsed.signature).toBeDefined();
+    expect(signatureEnvelopeSchema.parse(raw.signature).alg).toBe('EdDSA');
+  });
+
+  test('取到公钥后离线验通两份文档', async () => {
+    // 只用 /.well-known/jwks.json 拿到的公钥，不碰节点的私钥，也不再请求节点。
+    const resolveKey = staticDocumentKeyResolver(await jwks());
+    for (const path of ['/ocp/manifest', '/.well-known/ocp-catalog']) {
+      const document = await body(await get(path));
+      const result = await verifyDocumentSignature({ document, resolveKey });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error(`${path}: ${result.error.message}`);
+      expect(result.issuer).toBe('cat_example_typescript');
+      expect(trustCeilingFor(result)).toEqual({ trustTier: 'verified', invalidatesCache: false });
+    }
+  });
+
+  test('改 manifest 一个字节就验不过，且缓存必须作废', async () => {
+    const resolveKey = staticDocumentKeyResolver(await jwks());
+    const tampered = (await body(await get('/ocp/manifest'))) as Record<string, unknown>;
+    tampered.catalog_name = `${tampered.catalog_name as string}.`;
+    const result = await verifyDocumentSignature({ document: tampered, resolveKey });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('payload_mismatch');
+    expect(trustCeilingFor(result)).toEqual({ trustTier: 'unknown', invalidatesCache: true });
+  });
+
+  test('验签必须用收到的字节，不能用 parse() 的结果', async () => {
+    // crypto/v1 §4.5。96 处 `.default()` 会往文档里注入成员，拿 parse() 的输出去
+    // 验签必然失败——失败得还很像篡改，所以这条写成断言而不是注释。
+    const resolveKey = staticDocumentKeyResolver(await jwks());
+    const parsed = catalogManifestSchema.parse(await body(await get('/ocp/manifest')));
+    const result = await verifyDocumentSignature({ document: parsed, resolveKey });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('payload_mismatch');
   });
 });
 
