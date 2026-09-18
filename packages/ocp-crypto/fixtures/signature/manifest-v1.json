@@ -78,12 +78,17 @@
         }
       ],
       "object_contracts": [],
-      "trust_strategy": {
-        "manifest_signed": true,
-        "signature_algorithms": [
-          "EdDSA"
-        ],
-        "downgrade_invalidates_cache": true
+      "federation": {
+        "mode": "profile_only",
+        "node_role": "source_catalog",
+        "trust_strategy": {
+          "trust_tier": "verified",
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        }
       }
     },
     "signed_at": "2026-03-01T12:00:00.000Z",
@@ -126,25 +131,30 @@
         }
       ],
       "object_contracts": [],
-      "trust_strategy": {
-        "manifest_signed": true,
-        "signature_algorithms": [
-          "EdDSA"
-        ],
-        "downgrade_invalidates_cache": true
+      "federation": {
+        "mode": "profile_only",
+        "node_role": "source_catalog",
+        "trust_strategy": {
+          "trust_tier": "verified",
+          "manifest_signed": true,
+          "signature_algorithms": [
+            "EdDSA"
+          ],
+          "downgrade_invalidates_cache": true
+        }
       }
     },
     "expiring_expires_at": "2026-03-01T13:00:00.000Z"
   },
-  "expected_payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-  "expected_signing_input": "{\"alg\":\"EdDSA\",\"issuer\":\"cat_interop_signed\",\"kid\":\"nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI\",\"payload_hash\":\"sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da\",\"signed_at\":\"2026-03-01T12:00:00.000Z\"}",
+  "expected_payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+  "expected_signing_input": "{\"alg\":\"EdDSA\",\"issuer\":\"cat_interop_signed\",\"kid\":\"nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI\",\"payload_hash\":\"sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04\",\"signed_at\":\"2026-03-01T12:00:00.000Z\"}",
   "expected_envelope": {
     "alg": "EdDSA",
     "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
     "issuer": "cat_interop_signed",
     "signed_at": "2026-03-01T12:00:00.000Z",
-    "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-    "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+    "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+    "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
   },
   "expected_signed_document": {
     "ocp_version": "1.0",
@@ -185,23 +195,28 @@
       }
     ],
     "object_contracts": [],
-    "trust_strategy": {
-      "manifest_signed": true,
-      "signature_algorithms": [
-        "EdDSA"
-      ],
-      "downgrade_invalidates_cache": true
+    "federation": {
+      "mode": "profile_only",
+      "node_role": "source_catalog",
+      "trust_strategy": {
+        "trust_tier": "verified",
+        "manifest_signed": true,
+        "signature_algorithms": [
+          "EdDSA"
+        ],
+        "downgrade_invalidates_cache": true
+      }
     },
     "signature": {
       "alg": "EdDSA",
       "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
       "issuer": "cat_interop_signed",
       "signed_at": "2026-03-01T12:00:00.000Z",
-      "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-      "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+      "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+      "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
     }
   },
-  "expected_signed_document_sha256": "sha256:9d5edc1fbacf687578427ae6b19625ebd908c3efd0179079cdc4eb49916467b0",
+  "expected_signed_document_sha256": "sha256:c05a532c670cd11deb4a132d2a99a903cb0515bce3ff6333ee213997cdf85c03",
   "expected_expiring_signed_document": {
     "ocp_version": "1.0",
     "kind": "CatalogManifest",
@@ -241,12 +256,17 @@
       }
     ],
     "object_contracts": [],
-    "trust_strategy": {
-      "manifest_signed": true,
-      "signature_algorithms": [
-        "EdDSA"
-      ],
-      "downgrade_invalidates_cache": true
+    "federation": {
+      "mode": "profile_only",
+      "node_role": "source_catalog",
+      "trust_strategy": {
+        "trust_tier": "verified",
+        "manifest_signed": true,
+        "signature_algorithms": [
+          "EdDSA"
+        ],
+        "downgrade_invalidates_cache": true
+      }
     },
     "signature": {
       "alg": "EdDSA",
@@ -254,8 +274,8 @@
       "issuer": "cat_interop_signed",
       "signed_at": "2026-03-01T12:00:00.000Z",
       "expires_at": "2026-03-01T13:00:00.000Z",
-      "payload_hash": "sha256:4d8bdde378bf47ce66b8925fb984430fa270b75123065c9e13201e92f5983145",
-      "signature": "tPII_ZhMHsiaTJo1kvO3RNiwpwP4LFdcEMgfn8pWYGNo5vNkQUMKED19Ax-O06S_F_YSh21Dnhurssei6EB4DQ"
+      "payload_hash": "sha256:3b398bf2aecfd48e520fc1c75e88ffcf3c576aef3587db3a3486f4fba0027223",
+      "signature": "p7x5kDVyD9AkQKOP5XiCsMO-cCMdMCbIiJLv1OjZ5MnsfH1h0vmz0erEs69xGuGnz6P0gh8ZVKfryxUYemj_BQ"
     }
   },
   "verify": {
@@ -266,7 +286,7 @@
       "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
       "alg": "EdDSA",
       "signed_at": "2026-03-01T12:00:00.000Z",
-      "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
+      "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
       "trust_tier": "verified",
       "invalidates_cache": false
     }
@@ -314,12 +334,17 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         }
       },
       "expected_error": "unsigned",
@@ -368,19 +393,24 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "EdDSA",
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
-          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+          "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+          "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
         }
       },
       "expected_error": "envelope_malformed",
@@ -429,20 +459,25 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "EdDSA",
           "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
-          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg",
+          "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+          "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag",
           "nbf": "2026-03-01T12:00:00.000Z"
         }
       },
@@ -492,20 +527,25 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "ES256",
           "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
-          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+          "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+          "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
         }
       },
       "expected_error": "alg_not_supported",
@@ -554,20 +594,25 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "EdDSA",
           "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
           "issuer": "cat_interop_someone_else",
           "signed_at": "2026-03-01T12:00:00.000Z",
-          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+          "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+          "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
         }
       },
       "expected_error": "issuer_mismatch",
@@ -616,20 +661,25 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "EdDSA",
           "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
-          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+          "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+          "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
         }
       },
       "expected_error": "payload_mismatch",
@@ -678,20 +728,25 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "EdDSA",
           "kid": "kid_not_published",
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
-          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+          "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+          "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
         }
       },
       "expected_error": "key_not_found",
@@ -740,20 +795,25 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "EdDSA",
           "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
-          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-          "signature": "AvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+          "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+          "signature": "AVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
         }
       },
       "expected_error": "signature_invalid",
@@ -802,12 +862,17 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "EdDSA",
@@ -815,8 +880,8 @@
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
           "expires_at": "2026-03-01T13:00:00.000Z",
-          "payload_hash": "sha256:4d8bdde378bf47ce66b8925fb984430fa270b75123065c9e13201e92f5983145",
-          "signature": "tPII_ZhMHsiaTJo1kvO3RNiwpwP4LFdcEMgfn8pWYGNo5vNkQUMKED19Ax-O06S_F_YSh21Dnhurssei6EB4DQ"
+          "payload_hash": "sha256:3b398bf2aecfd48e520fc1c75e88ffcf3c576aef3587db3a3486f4fba0027223",
+          "signature": "p7x5kDVyD9AkQKOP5XiCsMO-cCMdMCbIiJLv1OjZ5MnsfH1h0vmz0erEs69xGuGnz6P0gh8ZVKfryxUYemj_BQ"
         }
       },
       "verify_overrides": {
@@ -868,20 +933,25 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "ES256",
           "kid": "nJHl0G3LEMaxeTVPbhPPdsDKJOKiyqVw34HOqxBH4JI",
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
-          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+          "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+          "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
         }
       },
       "expected_error": "alg_not_supported",
@@ -930,20 +1000,25 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "EdDSA",
           "kid": "kid_not_published",
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
-          "payload_hash": "sha256:632e457428f83ec024493ff69983c76c40fd7c2814d121142752a52d83a502da",
-          "signature": "YvRfYfsASKzWUDJYjIeCZJQRkCc67Esmpk2o6RNKNV3_vx9Q3S1E0r3hp__TT_OAtkz6YmCS0BOm_l7b0idCDg"
+          "payload_hash": "sha256:f5851cec8c255cf220a75bc38f3e3504a010d6f435db96ddd2641bf95aa33a04",
+          "signature": "qVl1MtxWyeC1H7AxS30urF5ucb26HkbbZ7zDQYQmICkZGMgKS244xzTaQxByKilKsH-iZqnlmKdjijOzh1g9Ag"
         }
       },
       "expected_error": "payload_mismatch",
@@ -992,12 +1067,17 @@
           }
         ],
         "object_contracts": [],
-        "trust_strategy": {
-          "manifest_signed": true,
-          "signature_algorithms": [
-            "EdDSA"
-          ],
-          "downgrade_invalidates_cache": true
+        "federation": {
+          "mode": "profile_only",
+          "node_role": "source_catalog",
+          "trust_strategy": {
+            "trust_tier": "verified",
+            "manifest_signed": true,
+            "signature_algorithms": [
+              "EdDSA"
+            ],
+            "downgrade_invalidates_cache": true
+          }
         },
         "signature": {
           "alg": "EdDSA",
@@ -1005,8 +1085,8 @@
           "issuer": "cat_interop_signed",
           "signed_at": "2026-03-01T12:00:00.000Z",
           "expires_at": "2026-03-01T13:00:00.000Z",
-          "payload_hash": "sha256:4d8bdde378bf47ce66b8925fb984430fa270b75123065c9e13201e92f5983145",
-          "signature": "tPII_ZhMHsiaTJo1kvO3RNiwpwP4LFdcEMgfn8pWYGNo5vNkQUMKED19Ax-O06S_F_YSh21Dnhurssei6EB4DQ"
+          "payload_hash": "sha256:3b398bf2aecfd48e520fc1c75e88ffcf3c576aef3587db3a3486f4fba0027223",
+          "signature": "p7x5kDVyD9AkQKOP5XiCsMO-cCMdMCbIiJLv1OjZ5MnsfH1h0vmz0erEs69xGuGnz6P0gh8ZVKfryxUYemj_BQ"
         }
       },
       "verify_overrides": {

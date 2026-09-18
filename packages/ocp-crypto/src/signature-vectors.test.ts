@@ -25,6 +25,10 @@ import {
 } from './index';
 
 const FIXTURE_URL = new URL('../fixtures/signature/manifest-v1.json', import.meta.url);
+const MANIFEST_SCHEMA_URL = new URL(
+  '../../../ocp.catalog.handshake.v1/catalog-manifest.schema.json',
+  import.meta.url,
+);
 
 interface NegativeCase {
   name: string;
@@ -124,6 +128,36 @@ describe('签名向量 · 正例（§7 §9）', () => {
       trustTier: want.trust_tier as 'verified',
       invalidatesCache: want.invalidates_cache,
     });
+  });
+});
+
+describe('签名向量 · 被签的是一份真 manifest', () => {
+  /**
+   * `catalog-manifest.schema.json` 顶层与 `federation` 都是
+   * `additionalProperties: false`，所以一个放错层级的成员会让向量在签一份
+   * 任何节点都发不出来的文档。这里只查成员名 —— 完整校验属于 ocp-schema，
+   * 而 ocp-crypto 不依赖它。
+   */
+  const schema = JSON.parse(readFileSync(MANIFEST_SCHEMA_URL, 'utf8')) as {
+    required: string[];
+    properties: Record<string, { properties?: Record<string, unknown> }>;
+  };
+
+  test('顶层成员都是 schema 声明过的，必填项一个不缺', () => {
+    const document = fixture.expected_signed_document;
+    expect(Object.keys(document).filter((key) => !(key in schema.properties))).toEqual([]);
+    expect(schema.required.filter((key) => !(key in document))).toEqual([]);
+  });
+
+  test('trust_strategy 在 federation 里面，不在顶层', () => {
+    const federation = (fixture.sign.document as { federation: Record<string, unknown> }).federation;
+    const declared = schema.properties.federation?.properties ?? {};
+    expect(Object.keys(federation).filter((key) => !(key in declared))).toEqual([]);
+    expect(federation).toHaveProperty('trust_strategy.manifest_signed', true);
+  });
+
+  test('signature 成员本身也是 schema 声明过的', () => {
+    expect('signature' in schema.properties).toBe(true);
   });
 });
 

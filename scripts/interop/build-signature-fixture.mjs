@@ -103,10 +103,19 @@ const DOCUMENT = {
     },
   ],
   object_contracts: [],
-  trust_strategy: {
-    manifest_signed: true,
-    signature_algorithms: ['EdDSA'],
-    downgrade_invalidates_cache: true,
+  // Nested under `federation`, which is where the schema puts it — a top-level
+  // `trust_strategy` would be rejected by `catalog-manifest.schema.json`'s
+  // `additionalProperties: false`, and a fixture that is not a valid manifest
+  // would be testing the signature over a document no node can publish.
+  federation: {
+    mode: 'profile_only',
+    node_role: 'source_catalog',
+    trust_strategy: {
+      trust_tier: 'verified',
+      manifest_signed: true,
+      signature_algorithms: ['EdDSA'],
+      downgrade_invalidates_cache: true,
+    },
   },
 };
 
