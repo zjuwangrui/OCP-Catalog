@@ -297,14 +297,38 @@ export const CLI_HELP: CliHelp = {
       ],
     },
     {
-      command: 'ocp catalog inspect <manifest-url>',
+      command: 'ocp catalog inspect <manifest-url> [--verify]',
       domain: 'catalog',
       action: 'inspect',
       summary: 'Inspect a Catalog manifest.',
-      description: 'Fetches the Catalog manifest to learn supported object types, query packs, filter fields, resolve capability, auth policy, and endpoints before querying.',
-      options: clientOptions,
+      description: 'Fetches the Catalog manifest to learn supported object types, query packs, filter fields, resolve capability, auth policy, and endpoints before querying. With --verify it also checks the manifest signature and exits 2 if the manifest does not verify.',
+      options: [
+        {
+          name: '--verify',
+          description: 'Check the manifest SignatureEnvelope against the signing node public keys. Exit code 0 when it verifies, 2 when it does not, 1 when the command itself failed. The verdict names which of the eight crypto/v1 section 8 codes applied: unsigned, envelope_malformed, alg_not_supported, issuer_mismatch, payload_mismatch, key_not_found, signature_invalid, signature_expired.',
+        },
+        {
+          name: '--jwks',
+          description: 'Key set for the signing node, as <catalog_id>=<file-or-url>. Defaults to discovering keys from the manifest URL host.',
+        },
+        {
+          name: '--discover',
+          description: 'Well-known discovery URL to read catalog_id and jwks_url from, instead of naming the catalog id by hand.',
+        },
+        {
+          name: '--expect-issuer',
+          description: 'Catalog id this manifest must be signed by. A manifest correctly signed by somebody else is still the wrong manifest.',
+        },
+        {
+          name: '--at',
+          description: 'RFC 3339 moment to judge the signature expiry at. Defaults to now.',
+        },
+        ...clientOptions,
+      ],
       examples: [
         'ocp catalog inspect http://localhost:4000/ocp/manifest',
+        'ocp catalog inspect http://localhost:4400/ocp/manifest --verify',
+        'ocp catalog inspect ./manifest.json --verify --jwks cat_example_typescript=./jwks.json',
       ],
     },
     {

@@ -25,6 +25,12 @@ import {
   verifyAttributionPayload,
 } from './attribution';
 import { CLI_HELP, FULL_CLI_HELP, findCommandHelp, findDomainHelp } from './help';
+import {
+  documentSignatureIssuer,
+  exitCodeForVerification,
+  verifyCatalogDocument,
+  type DocumentVerification,
+} from './inspect-verify';
 import { redactSavedProviderApiKey } from './provider-output';
 
 const CLI_PACKAGE_NAME = '@ocp-catalog/ocp-cli';
@@ -34,6 +40,12 @@ const args = process.argv.slice(2);
 try {
   const result = await run(args);
   if (result !== undefined) printJson(result);
+  // A verdict of "this did not verify" is an answer, not a crash, so it is
+  // printed like one — but a shell that cannot tell it from a pass will happily
+  // pipe a tampered manifest onwards. `2`, never `1`: `1` already means the
+  // command itself failed, and conflating the two makes a network error look
+  // like a forgery and a forgery look like a network error.
+  if (isFailedVerification(result)) process.exitCode = exitCodeForVerification(result);
 } catch (error) {
   const payload = error instanceof OcpClientValidationError
     ? { error: { code: 'validation_error', message: error.message, details: error.details } }
@@ -134,7 +146,8 @@ async function run(argv: string[]) {
 
   if (domain === 'catalog' && command === 'inspect') {
     const manifestUrl = flags.positionals[0] ?? requiredFlag(flags, 'manifest-url');
-    return client.inspectCatalog(manifestUrl);
+    if (!booleanFlag(flags, 'verify', false)) return client.inspectCatalog(manifestUrl);
+    return inspectAndVerify(flags, manifestUrl);
   }
 
   if (domain === 'provider' && command === 'register') {
@@ -300,6 +313,57 @@ function updateOcpCliAndSkill(options: { manager?: string; dryRun: boolean; targ
     dry_run: false,
     commands: [installCommand, skillCommand],
   };
+}
+
+/**
+ * `ocp catalog inspect --verify` — fetch the manifest, then check its signature.
+ *
+ * Fetched with `loadJsonTarget` and **not** with `client.inspectCatalog()`: the
+ * client parses the manifest through `catalogManifestSchema`, and a parsed
+ * document is not the document that was signed. Spec §4.5 rules that out, and
+ * the failure it produces is `payload_mismatch` — indistinguishable, in the
+ * output, from a node that really was tampered with.
+ *
+ * The manifest is printed either way. A caller that cannot verify it still has
+ * to see what it was asked to trust, and the verdict beside it says how much of
+ * it to believe.
+ */
+async function inspectAndVerify(flags: ParsedFlags, manifestUrl: string) {
+  const at = stringFlag(flags, 'at');
+  if (at && Number.isNaN(Date.parse(at))) throw new Error('--at must be an RFC 3339 timestamp');
+
+  const manifest = await loadJsonTarget(manifestUrl);
+  const issuer = documentSignatureIssuer(manifest);
+  const remote = manifestUrl.startsWith('http://') || manifestUrl.startsWith('https://');
+
+  const jwks = await loadJwksMap(
+    flags,
+    issuer ? [issuer] : [],
+    // Same default as `--verify-attribution`: the node we just fetched from.
+    // Discovery is a way to *find* a key set, never a reason to trust one the
+    // document did not name — the issuer check below is what binds them.
+    remote ? new URL('/.well-known/ocp-catalog', manifestUrl).toString() : undefined,
+  );
+
+  if (issuer && !(issuer in jwks)) {
+    // Thrown rather than reported as `key_not_found`, and so exits 1 rather
+    // than 2. The operator did not supply this node's keys at all; calling that
+    // an unverifiable manifest would put a missing flag and a forged document
+    // behind the same exit code.
+    throw new Error(
+      `No keys supplied for "${issuer}". Use --discover <well-known-url> for a node you can reach, ` +
+        `or --jwks ${issuer}=<file-or-url>.`,
+    );
+  }
+
+  const verification = await verifyCatalogDocument({
+    document: manifest,
+    jwks,
+    ...(at ? { at: new Date(at) } : {}),
+    ...(stringFlag(flags, 'expect-issuer') ? { expectedIssuer: stringFlag(flags, 'expect-issuer')! } : {}),
+  });
+
+  return { ...verification, manifest };
 }
 
 async function loadManifestTarget(client: OcpClient, target: string): Promise<CatalogManifest | unknown> {
@@ -509,6 +573,30 @@ function jsonFlag<T>(flags: ParsedFlags, key: string, fallback: T): T {
 
 function printJson(value: unknown) {
   console.log(JSON.stringify(value, null, 2));
+}
+
+/**
+ * Whether this result is a document-signature verdict that failed.
+ *
+ * Deliberately narrow — it matches the shape `verifyCatalogDocument` returns,
+ * not every result with an `ok` member. `ocp attribution verify` also prints
+ * `ok: false` and still exits `0`; that is the same gap, but closing it changes
+ * the behaviour of a shipped command and belongs in its own commit rather than
+ * riding along behind a signature feature.
+ *
+ * `process.exitCode` rather than `process.exit()`: the verdict has just been
+ * written to stdout, and stdout to a pipe is asynchronous. Exiting here would
+ * truncate the JSON precisely when it is being read by another program.
+ */
+function isFailedVerification(result: unknown): result is DocumentVerification & { ok: false } {
+  const record = result as Record<string, unknown> | null;
+  return (
+    !!record &&
+    typeof record === 'object' &&
+    record.ok === false &&
+    typeof record.trust_tier === 'string' &&
+    typeof record.invalidates_cache === 'boolean'
+  );
 }
 
 type ZodLikeIssue = {
