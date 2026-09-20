@@ -20,10 +20,12 @@ import {
   appendRelayHop,
   issueOriginToken,
   signDocument,
+  verifyAttributionToken,
   type AttributionToken,
 } from '@ocp-catalog/ocp-crypto';
 import { PRODUCTS, type Product } from './products';
 import { SIGNING_KEY, jwkSet } from './signing-key';
+import { trustUpstream, trustedUpstreams, upstreamKeyResolver } from './upstream-keys';
 
 const CATALOG_ID = process.env.CATALOG_ID ?? 'cat_example_typescript';
 const CATALOG_NAME = process.env.CATALOG_NAME ?? 'Example TypeScript Catalog';
@@ -32,6 +34,12 @@ const PORT = Number(process.env.PORT ?? 4400);
 const BASE_URL = (process.env.PUBLIC_BASE_URL ?? `http://localhost:${PORT}`).replace(/\/$/, '');
 
 const entryId = (product: Product) => `entry_${PROVIDER_ID}_${product.id}`;
+
+// This node can always verify its own hops, so its key belongs in the upstream
+// set. Without it, a chain that already passed through here fails at
+// `key_not_found` before the §4.4 loop check ever runs — the same refusal, but
+// reported as "I don't know that catalog" about itself.
+trustUpstream(CATALOG_ID, jwkSet());
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -240,7 +248,7 @@ interface ResolveBody {
  * arrived. Minting a fresh chain over an upstream token would erase the hops
  * before it and claim origin for traffic somebody else found.
  */
-function mintAttribution(product: Product, body: ResolveBody): AttributionToken | undefined {
+function mintAttribution(product: Product, body: ResolveBody): Promise<AttributionToken | undefined> | AttributionToken | undefined {
   if (body.purpose !== 'checkout') return undefined;
 
   const context = body.attribution_context as AttributionContext | undefined;
@@ -270,7 +278,8 @@ function asUpstreamToken(value: unknown): AttributionToken | undefined {
 }
 
 /**
- * Appends this node as a `relay` hop on an upstream token.
+ * Appends this node as a `relay` hop on an upstream token — **after verifying
+ * the chain it is about to co-sign.**
  *
  * `entry_id` is *not* required to match this node's entry, and deliberately so.
  * Core claims are immutable across hops (§4.3) — every upstream hop has already
@@ -278,21 +287,63 @@ function asUpstreamToken(value: unknown): AttributionToken | undefined {
  * match is `object_id`: relaying a token minted for a different product would
  * attribute this sale to whoever found that one.
  *
- * Returns `undefined` rather than an error response when the upstream token is
- * unusable, which keeps this node's resolve contract unchanged (§10.2). The
- * agent gets the same response it would have got without attribution.
+ * ## Why the upstream chain is verified first
  *
- * > **The example stops short of what a production relay owes here.** A real
- * > node MUST verify the upstream chain — `verifyAttributionToken` with a
- * > resolver over each upstream `catalog_id`'s JWKS — before co-signing it.
- * > Signing over an unverified chain puts this node's name on someone else's
- * > forgery, and §5.2 makes that permanent: hop N's signature covers hops
- * > 1..N−1. This node skips it because it has no key discovery configured and
- * > the demo is meant to run with the network unplugged.
+ * §5.2 makes hop N's signature cover hops 1..N−1. Co-signing an unverified
+ * chain therefore does not merely pass a forgery along — it puts this node's
+ * key on it, permanently, and a merchant verifying later sees a valid hop from
+ * a node it has a relationship with sitting on top of a hop nobody can check.
+ * The forger needs no key of their own; they need one relay that signs
+ * whatever arrives.
+ *
+ * The check is the full §7.1 filter, not a signature loop, because the other
+ * rows matter here too: an expired chain (row 9) or a `view` token (row 6)
+ * cannot be made settleable by adding a hop, so appending one only produces a
+ * token that will be rejected further downstream with this node named on it.
+ *
+ * Row 7 (`provider_id`) and row 10 (`jti` replay) are *not* checked, and that
+ * is not an omission. Both are settlement-time rows: row 7 compares against a
+ * report's `provider_id`, which does not exist yet, and claiming the `jti`
+ * here would burn a token at resolve time for an order that may never happen.
+ *
+ * Keys come from {@link upstreamKeyResolver} — see `upstream-keys.ts` for the
+ * configuration, and for why "no keys configured" means "no relay" rather than
+ * "relay anyway".
+ *
+ * Returns `undefined` rather than an error response whenever the upstream
+ * token is unusable, which keeps this node's resolve contract unchanged
+ * (§10.2). The agent gets the same response it would have got without
+ * attribution.
  */
-function relayAttribution(product: Product, upstream: unknown): AttributionToken | undefined {
+async function relayAttribution(product: Product, upstream: unknown): Promise<AttributionToken | undefined> {
   const token = asUpstreamToken(upstream);
   if (!token || token.object_id !== product.id) return undefined;
+
+  let verdict;
+  try {
+    verdict = await verifyAttributionToken({ token, resolveKey: upstreamKeyResolver });
+  } catch {
+    // §7.3 — a key server that is unreachable, stale or malformed is not a
+    // statement about the token, so this is not evidence of forgery. It is
+    // also not evidence of authenticity, and signing is the irreversible
+    // direction, so the answer is still no.
+    return undefined;
+  }
+
+  if (!verdict.ok) {
+    // The chain is forged, broken, expired, or comes from a catalog this node
+    // holds no keys for. Naming the reason in a log is the useful thing here;
+    // a production node should count these per upstream `catalog_id`, because
+    // a partner that suddenly produces key_not_found has rotated a key and a
+    // partner that produces signature_invalid has a different problem.
+    console.warn(
+      `refusing to relay for "${token.iss}": ${verdict.error.code} — ${verdict.error.message}` +
+        (trustedUpstreams().length === 0
+          ? ' (no upstream JWKS configured; set OCP_UPSTREAM_JWKS or call trustUpstream)'
+          : ''),
+    );
+    return undefined;
+  }
 
   try {
     return appendRelayHop({
@@ -307,13 +358,14 @@ function relayAttribution(product: Product, upstream: unknown): AttributionToken
       settles: true,
     });
   } catch {
-    // Malformed, looping, or already-full chains (§5.4 / §4.4). Refusing to
+    // Looping or already-full chains (§5.4 / §4.4) — both structural, and both
+    // survive verification because a full chain is a valid chain. Refusing to
     // sign is the point; the chain is not made better by this node's key.
     return undefined;
   }
 }
 
-function resolve(body: ResolveBody) {
+async function resolve(body: ResolveBody): Promise<Response> {
   const product = PRODUCTS.find((p) => entryId(p) === body.entry_id);
   if (!product) {
     return json(
@@ -334,7 +386,7 @@ function resolve(body: ResolveBody) {
 
   // The token rides on the binding that leads to money, not on the response as
   // a whole: a resolve can offer several actions and only some of them settle.
-  const attribution = mintAttribution(product, body);
+  const attribution = await mintAttribution(product, body);
   if (body.purpose === 'checkout') {
     actionBindings.push({
       action_id: 'checkout',

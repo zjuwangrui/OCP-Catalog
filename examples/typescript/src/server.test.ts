@@ -22,6 +22,7 @@ import {
   type AttributionToken,
 } from '@ocp-catalog/ocp-crypto';
 import { handle } from './server';
+import { trustUpstream } from './upstream-keys';
 import { verifyOffline } from './offline-verify';
 import { MerchantSettler, buildReport } from './settle';
 
@@ -379,6 +380,16 @@ describe('多跳：接在上游 token 后面追加一跳（T4）', () => {
   const upstreamKey = generateEd25519KeyPair();
   const UPSTREAM_ID = 'cat_upstream_relaytest';
 
+  const upstreamJwks = {
+    keys: [{ ...publicJwkOf(upstreamKey.privateJwk), kid: upstreamKey.kid, alg: 'EdDSA', use: 'sig' }],
+  };
+
+  // This node will not co-sign a chain it cannot verify, so the upstream node's
+  // public keys have to be on hand before any of this works. A deployment sets
+  // OCP_UPSTREAM_JWKS; here it is the runtime call, so the key generated above
+  // can be used.
+  trustUpstream(UPSTREAM_ID, upstreamJwks);
+
   /** A token some other catalog node issued for the same product. */
   const upstreamToken = (over: Record<string, unknown> = {}) => ({
     ...issueOriginToken({
@@ -471,6 +482,12 @@ describe('多跳：接在上游 token 后面追加一跳（T4）', () => {
     let token = upstreamToken() as unknown as AttributionToken;
     for (let i = 2; i <= 8; i += 1) {
       const key = generateEd25519KeyPair();
+      // Every filler is trusted, so the refusal below is §4.4 (chain full) and
+      // not an unverifiable hop. Without this the test would still pass, for
+      // the wrong reason, and stop covering the rule it names.
+      trustUpstream(`cat_filler_${i}`, {
+        keys: [{ ...publicJwkOf(key.privateJwk), kid: key.kid, alg: 'EdDSA', use: 'sig' }],
+      });
       token = appendRelayHop({
         privateJwk: key.privateJwk,
         kid: key.kid,
@@ -481,6 +498,118 @@ describe('多跳：接在上游 token 后面追加一跳（T4）', () => {
     }
     expect(token.chain).toHaveLength(8);
     expect(await relayed(token)).toBe(undefined);
+  });
+});
+
+describe('联署前先验上游链（T5）', () => {
+  const upstreamKey = generateEd25519KeyPair();
+  const UPSTREAM_ID = 'cat_upstream_verifytest';
+
+  trustUpstream(UPSTREAM_ID, {
+    keys: [{ ...publicJwkOf(upstreamKey.privateJwk), kid: upstreamKey.kid, alg: 'EdDSA', use: 'sig' }],
+  });
+
+  const upstreamToken = () =>
+    issueOriginToken({
+      privateJwk: upstreamKey.privateJwk,
+      kid: upstreamKey.kid,
+      catalogId: UPSTREAM_ID,
+      agentId: AGENT.agent_id,
+      entryId: 'entry_upstream_sku-001',
+      objectId: 'sku-001',
+      providerId: 'example_inmemory',
+      purpose: 'checkout',
+    });
+
+  const relayed = async (upstream: unknown) =>
+    attributionOf(
+      await resolveRaw({ purpose: 'checkout', attribution_context: { ...AGENT, upstream_token: upstream } }),
+    );
+
+  test('上游链完好 → 照常联署', async () => {
+    const token = (await relayed(upstreamToken())) as unknown as AttributionToken;
+    expect(token.chain).toHaveLength(2);
+    expect(token.chain[1]!.catalog_id).toBe('cat_example_typescript');
+  });
+
+  // The core of T5. A relay that co-signs whatever arrives is the cheapest way
+  // to launder a forgery: §5.2 makes hop 2's signature cover hop 1, so the
+  // forger ends up with a chain carrying a real signature from a node the
+  // merchant has a relationship with.
+  test('上游签名被改一个字节 → 拒绝联署', async () => {
+    const forged = structuredClone(upstreamToken()) as AttributionToken;
+    const signature = forged.chain[0]!.signature;
+    // Flipped in the middle, not at the end: base64url's last character of an
+    // Ed25519 signature carries padding bits that a decoder may ignore, so a
+    // tail edit can decode to the same 64 bytes and prove nothing.
+    const at = Math.floor(signature.length / 2);
+    forged.chain[0]!.signature =
+      signature.slice(0, at) + (signature[at] === 'A' ? 'B' : 'A') + signature.slice(at + 1);
+    expect(await relayed(forged)).toBe(undefined);
+  });
+
+  test('上游核心声明被改 → 拒绝联署（签名覆盖的就是这些）', async () => {
+    const forged = structuredClone(upstreamToken()) as AttributionToken;
+    forged.agent_id = 'agent_somebody_else';
+    expect(await relayed(forged)).toBe(undefined);
+  });
+
+  test('上游链自称 complete=true 但跳内标记说不是 → 拒绝联署', async () => {
+    const forged = structuredClone(upstreamToken()) as AttributionToken;
+    forged.complete = !forged.complete;
+    expect(await relayed(forged)).toBe(undefined);
+  });
+
+  test('整条链由陌生 catalog 签发（本节点没有它的公钥）→ 拒绝联署', async () => {
+    const stranger = generateEd25519KeyPair();
+    const token = issueOriginToken({
+      privateJwk: stranger.privateJwk,
+      kid: stranger.kid,
+      catalogId: 'cat_never_configured',
+      agentId: AGENT.agent_id,
+      entryId: 'entry_stranger_sku-001',
+      objectId: 'sku-001',
+      providerId: 'example_inmemory',
+      purpose: 'checkout',
+    });
+    // Signed perfectly well — by somebody this node has no reason to vouch for.
+    // "Verify if keys happen to be around" would sign this, and a forger picks
+    // exactly the catalog_id that is not configured.
+    expect(await relayed(token)).toBe(undefined);
+  });
+
+  test('上游 token 已过期 → 拒绝联署', async () => {
+    // Re-issued in the past rather than edited: rewriting `exp` in place would
+    // break hop 1's signature, and then the test would be covering
+    // signature_invalid again. The point is that a *well-signed* expired chain
+    // is refused — adding a hop cannot make it settleable, so co-signing one
+    // only puts this node's name on a token that gets rejected downstream.
+    const token = issueOriginToken({
+      privateJwk: upstreamKey.privateJwk,
+      kid: upstreamKey.kid,
+      catalogId: UPSTREAM_ID,
+      agentId: AGENT.agent_id,
+      entryId: 'entry_upstream_sku-001',
+      objectId: 'sku-001',
+      providerId: 'example_inmemory',
+      purpose: 'checkout',
+      now: () => new Date(Date.now() - 48 * 60 * 60 * 1000),
+      ttlSeconds: 60,
+    });
+    expect(await relayed(token)).toBe(undefined);
+  });
+
+  test('拒绝联署不影响 resolve 本身——仍是合规响应，只是没有 attribution', async () => {
+    const forged = structuredClone(upstreamToken()) as AttributionToken;
+    forged.agent_id = 'agent_somebody_else';
+    const parsed = resolvableReferenceSchema.parse(
+      await resolveRaw({ purpose: 'checkout', attribution_context: { ...AGENT, upstream_token: forged } }),
+    );
+    // §10.2: an agent that cannot be attributed gets the response it would have
+    // got before this node learned to sign, not an error.
+    const checkout = parsed.action_bindings.find((b) => b.action_id === 'checkout');
+    expect(checkout).toBeDefined();
+    expect((checkout as Record<string, unknown>).attribution).toBeUndefined();
   });
 });
 

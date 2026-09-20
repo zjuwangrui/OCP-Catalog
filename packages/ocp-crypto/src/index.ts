@@ -95,6 +95,9 @@ export type {
   SettlementRecord,
 } from './settlement';
 
+export { nonTransactional } from './stores';
+export type { LedgerStore, ReplayStore, SettlementTransaction } from './stores';
+
 export {
   SIGNATURE_MEMBER,
   documentPayload,

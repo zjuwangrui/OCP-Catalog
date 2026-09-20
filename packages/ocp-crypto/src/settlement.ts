@@ -26,11 +26,11 @@
  */
 import { ATTRIBUTION_ERROR_CODES, AttributionError } from './errors';
 import type { AttributionToken } from './attribution';
+import { nonTransactional, type LedgerStore, type ReplayStore, type SettlementTransaction } from './stores';
 import {
   verifyAttributionToken,
   type AttributionKeyResolver,
   type AttributionVerdict,
-  type JtiRegistry,
 } from './verify';
 
 /** §6.1 — `refunded` and `cancelled` exist because reversal is not optional. */
@@ -155,28 +155,31 @@ export function adjudicate<T extends { token: AttributionToken }>(
 }
 
 /**
- * The settled-orders ledger — §7.1 row 11's state, plus report idempotency.
+ * The in-memory settled-orders ledger — §7.1 row 11's state, plus report
+ * idempotency. **Demonstration only.**
  *
  * ## In-memory, and this one holds the money
  *
- * The same gap {@link JtiRegistry} carries, with higher stakes: this map is the
+ * The same gap `JtiRegistry` carries, with higher stakes: this map is the
  * only thing standing between one sale and two payouts. It empties on restart
  * and does not span processes, so as written a restart makes every past order
  * settleable a second time.
  *
- * The replacement is a table with a **unique constraint on `order_id`**, written
- * in the same transaction as the payout. Not a cache in front of one: if the
- * insert and the payout can commit separately, there is a window where the money
- * moved and the dedup row did not, and that window is exactly the double-payment
- * this class exists to prevent. The `jti` claim (§7.1 row 10) belongs in that
- * same transaction for the same reason.
+ * The replacement implements {@link LedgerStore} over a table with a **unique
+ * constraint on `order_id`**, written in the same transaction as the payout.
+ * Not a cache in front of one: if the insert and the payout can commit
+ * separately, there is a window where the money moved and the dedup row did
+ * not, and that window is exactly the double-payment this class exists to
+ * prevent. The `jti` claim (§7.1 row 10) belongs in that same transaction for
+ * the same reason — `stores.ts` states the contract in full, and
+ * {@link SettleOrderParams.transaction} is how a deployment supplies it.
  *
  * Unlike `JtiRegistry` this has no expiry and no cap. Settled orders are not
  * allowed to age out — an order forgotten is an order that can be settled again
  * — so the growth is real and is another reason the durable version is a
  * database table and not a `Map`.
  */
-export class SettlementLedger {
+export class SettlementLedger implements LedgerStore {
   readonly #orders = new Map<string, SettlementRecord>();
   readonly #reports = new Map<string, SettlementRecord>();
 
@@ -234,11 +237,22 @@ export interface SettleOrderParams {
   /** Every report claiming one order. They must all name the same `order_id`. */
   reports: readonly ConversionReport[];
   resolveKey: AttributionKeyResolver;
-  ledger: SettlementLedger;
+  /** §7.1 row 11's state. `SettlementLedger` is the in-memory demonstration. */
+  ledger: LedgerStore;
   /** §7.1 row 10's state. Claimed for the winner only. */
-  jtiRegistry: JtiRegistry;
+  jtiRegistry: ReplayStore;
   /** §7.2 default. Any other value MUST be published (§7.4). */
   rule?: AdjudicationRule;
+  /**
+   * Runs the row-10 claim and the row-11 commit as one unit of work, so a
+   * deployment can put them — and its payout — in one transaction.
+   *
+   * Defaults to {@link nonTransactional}, which runs them in sequence with no
+   * atomicity. That is correct for the in-memory stores, where a crash loses
+   * both writes anyway, and wrong for any durable store: see `stores.ts` for
+   * why the payout-without-claim direction is the unrecoverable one.
+   */
+  transaction?: SettlementTransaction;
 }
 
 function furthestError(rejected: readonly CandidateOutcome[]): AttributionError {
@@ -270,7 +284,7 @@ function furthestError(rejected: readonly CandidateOutcome[]): AttributionError 
  * 3. **`report_id` idempotency, then §7.1 row 11** on the winner alone. In that
  *    order: a retried report must return its original answer, not
  *    `duplicate_order`.
- * 4. **Claim the `jti` and commit**, together.
+ * 4. **Claim the `jti` and commit, inside one transaction.**
  *
  * Row 10 is read for every candidate but claimed only for the winner. Claiming
  * on a loser's behalf would bind its `jti` to an order it was never paid for,
@@ -282,7 +296,14 @@ function furthestError(rejected: readonly CandidateOutcome[]): AttributionError 
  * `order_id`.
  */
 export async function settleOrder(params: SettleOrderParams): Promise<SettleOrderResult> {
-  const { reports, resolveKey, ledger, jtiRegistry, rule = 'last_touch' } = params;
+  const {
+    reports,
+    resolveKey,
+    ledger,
+    jtiRegistry,
+    rule = 'last_touch',
+    transaction = nonTransactional,
+  } = params;
 
   if (reports.length === 0) throw new Error('settleOrder needs at least one report');
   const orderId = reports[0]!.order_id;
@@ -352,7 +373,7 @@ export async function settleOrder(params: SettleOrderParams): Promise<SettleOrde
   winning.won = true;
 
   // ---- Step 3: report idempotency, then §7.1 row 11 ------------------------
-  const seen = ledger.outcomeOf(winner.report.report_id);
+  const seen = await ledger.outcomeOf(winner.report.report_id);
   if (seen) {
     return {
       ok: true,
@@ -363,7 +384,7 @@ export async function settleOrder(params: SettleOrderParams): Promise<SettleOrde
     };
   }
 
-  const settled = ledger.recordOf(orderId);
+  const settled = await ledger.recordOf(orderId);
   const reversal = pool === reversing;
 
   if (!reversal && settled) {
@@ -401,19 +422,29 @@ export async function settleOrder(params: SettleOrderParams): Promise<SettleOrde
     rule,
   };
 
-  if (!reversal) {
-    // The claim and the payout have to land together; see SettlementLedger.
-    if (!jtiRegistry.claim(winner.token.jti, orderId, new Date(winner.token.exp))) {
-      winning.error = new AttributionError(
-        'replayed_jti',
-        `jti "${winner.token.jti}" is already settled against order ` +
-          `"${String(jtiRegistry.orderOf(winner.token.jti))}", not "${orderId}"`,
-      );
-      winning.won = false;
-      return { ok: false, error: winning.error, candidates };
+  // ---- Step 4: claim and commit, in one transaction ------------------------
+  //
+  // Both writes go inside `transaction`, and a deployment's payout belongs in
+  // the same callback. Sequenced without one, the money can move and the guard
+  // be lost; see stores.ts for why that direction is the unrecoverable one.
+  const replayed = await transaction(async () => {
+    if (!reversal) {
+      if (!(await jtiRegistry.claim(winner.token.jti, orderId, new Date(winner.token.exp)))) {
+        return String(await jtiRegistry.orderOf(winner.token.jti));
+      }
     }
+    await ledger.commit(record);
+    return undefined;
+  });
+
+  if (replayed !== undefined) {
+    winning.error = new AttributionError(
+      'replayed_jti',
+      `jti "${winner.token.jti}" is already settled against order "${replayed}", not "${orderId}"`,
+    );
+    winning.won = false;
+    return { ok: false, error: winning.error, candidates };
   }
 
-  ledger.commit(record);
   return { ok: true, action: reversal ? 'reversed' : 'settled', record, idempotent: false, candidates };
 }

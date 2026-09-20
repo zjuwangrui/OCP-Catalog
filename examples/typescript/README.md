@@ -119,12 +119,42 @@ It refuses to sign — and returns the resolve without an `attribution` — when
 upstream token is for a different `object_id`, already contains this node (a
 loop), or is already at the §4.4 cap of 8 hops.
 
-> **This example does not verify the upstream chain before co-signing it, and a
-> real node must.** §5.2 makes hop N's signature cover hops 1..N−1 permanently,
-> so signing over an unverified chain puts this node's name on someone else's
-> forgery. The fix is `verifyAttributionToken` with a resolver over each upstream
-> `catalog_id`'s JWKS; the example skips it because it has no key discovery
-> configured and the demo is meant to run with the network unplugged.
+#### 联署之前先验上游链
+
+**一个中继跳就是对别人那条链的签名。** §5.2 让第 N 跳的签名覆盖第 1..N−1 跳，
+所以对一条没验过的链签字，不是「把伪造传下去」，而是把本节点的密钥**永久**按
+在上面：下游商户看到的是一个它认识的节点，签在一条谁都验不了的链上面。伪造者
+不需要自己的密钥，只需要一个来什么签什么的中继。
+
+所以 `relayAttribution` 在 `appendRelayHop` 之前先跑一遍完整的 §7.1 验证器。
+不只是验签名循环——过期的链（第 9 行）或 `view` 凭证（第 6 行）不会因为多一跳
+就变得可结算，加上去只会得到一张下游照样拒绝、但上面写着本节点名字的凭证。
+第 7 行（`provider_id`）和第 10 行（`jti` 重放）**故意不查**：它们是结算时的
+规则，第 7 行要比对一份还不存在的回报，而在 resolve 时认领 `jti` 等于为一笔
+可能永远不会发生的订单烧掉一张凭证。
+
+公钥从哪来，见 [`src/upstream-keys.ts`](./src/upstream-keys.ts)，两种配法：
+
+```bash
+# 离线路径：catalog_id → JWKS 文档
+OCP_UPSTREAM_JWKS='{"cat_partner_a":{"keys":[{"kty":"OKP","crv":"Ed25519","x":"...","kid":"..."}]}}' \
+  bun run src/server.ts
+```
+
+```ts
+// 运行时路径：从注册中心轮询、或运维接口推进来
+import { trustUpstream } from './upstream-keys';
+trustUpstream('cat_partner_a', await fetchJwks(partnerA));
+```
+
+**默认是「谁都不信」，这是有意的。** 什么都不配时这张表是空的，每条上游链都停
+在 `key_not_found`，一个中继跳都不会追加；resolve 本身照常成功，只是不带
+attribution——这正是 §10.2 对「无法归因的节点」的要求。反过来那个默认值（先中继，
+有密钥就顺手验一下）值得单独点名，因为它长得像优雅降级而并不是：伪造者会挑那个
+**没配**的 `catalog_id`。
+
+本节点自己的公钥在启动时就注册进去了。否则一条已经过本节点的链会在 §4.4 环路
+检查之前先挂在 `key_not_found` 上——同样是拒签，但报成了「我不认识我自己」。
 
 ### Verifying offline
 
@@ -265,4 +295,4 @@ bun test
 ```
 
 Configuration via env: `CATALOG_ID`, `CATALOG_NAME`, `PORT`, `PUBLIC_BASE_URL`,
-`OCP_SIGNING_JWK`.
+`OCP_SIGNING_JWK`, `OCP_UPSTREAM_JWKS`.

@@ -32,7 +32,9 @@ reference implementation, see the `docs/` directory of the instances repo.
     a tampered payload and a tampered envelope are different findings, and §7
     fixes the eight-step verification order. Implemented in
     [`packages/ocp-crypto`](../packages/ocp-crypto/README.md) with the §11
-    vectors under `fixtures/signature/`. Python / Go ports not written yet.
+    vectors under `fixtures/signature/`. Ported to Python and Go, with a
+    3×3 signing/verification matrix
+    ([`scripts/interop/signature-matrix.mjs`](../scripts/interop/signature-matrix.mjs)).
   - `specs/attribution/v1.md` — **draft**; data model, origin-token issuance,
     relay chains, the full §7.1 verifier, and §6/§7.2 settlement implemented,
     end to end through [`examples/typescript`](../examples/typescript/README.md)
@@ -44,6 +46,10 @@ reference implementation, see the `docs/` directory of the instances repo.
     `JtiRegistry` (row 10) and `SettlementLedger` (row 11) — are **in-memory**,
     so they do not survive a restart or span processes and must become
     transactional rows before real money moves.
+  - `specs/attribution/settlement-stores.md` — **draft**; the `ReplayStore` /
+    `LedgerStore` contracts those two rows need in production. The requirement
+    is one transaction: a payout that commits without its `jti` claim is the
+    one failure direction nothing can undo afterwards.
 - `proposals/`: in-flight design proposals and implementation plans. Not normative;
   a proposal becomes normative only once it lands under `specs/`.
 

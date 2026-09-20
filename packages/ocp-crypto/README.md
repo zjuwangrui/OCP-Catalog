@@ -136,6 +136,8 @@ else console.log(verdict.settlingCatalogIds, verdict.complete, verdict.lastSigne
 
 替代物是**和结算记录同一个事务性存储里的一行**，`jti` 为键、`order_id` 在旁边：认领和打款必须一起提交，否则钱动了之后守卫还可能丢。写满时它**抛异常而不是淘汰**——淘汰会在进程最忙的那一刻悄悄打开它本来要关的那个窗口。
 
+换的接口已经在包里：`JtiRegistry` 实现的是 [`ReplayStore`](./src/stores.ts)，`settleOrder` 只认这个接口，所以换存储不用动裁决逻辑。方法允许返回 `Promise`——持久化 store 的每次认领都是一次网络调用，只能返回 `boolean` 的接口除了另一个 `Map` 谁都实现不了。事务契约见 [`docs/specs/attribution/settlement-stores.md`](../../docs/specs/attribution/settlement-stores.md)。
+
 保留期是**推导出来的，不是配置项**：条目留到凭证自己的 `exp`。过了那一刻第 9 行本来就会拒掉它，再记住这个 `jti` 也保护不了任何东西。
 
 ### 结算：从「这张凭证是真的」到「这笔订单付给谁」
@@ -189,6 +191,8 @@ else if (result.action === 'settled') console.log(result.record.agentId, result.
 同 `JtiRegistry` 的缺口，赌注更大：这张 map 是一笔成交和两次打款之间唯一的东西，重启就等于把所有历史订单重新放开一次。替代物是一张在 `order_id` 上**带唯一约束**的表，和打款同一个事务写入——不是在它前面加缓存：插入和打款能分开提交，就存在「钱动了、去重行没落」的窗口，而那正是它要挡的那次重复打款。
 
 它也没有过期和上限，这是故意的：已结算的订单不允许老化淘汰，忘掉一笔就等于放它再结一次。
+
+对应的接口是 [`LedgerStore`](./src/stores.ts)，和 `ReplayStore` 一起由 `settleOrder` 的 `transaction` 参数串起来：认领 `jti` 与写入结算记录发生在同一个回调里，回调抛错就整体回滚。默认值 `nonTransactional` 直接执行回调——内存实现下等价，生产上配错了也能在 code review 里看见，这是它没被写成匿名箭头的原因。两条规则的完整事务契约见 [`docs/specs/attribution/settlement-stores.md`](../../docs/specs/attribution/settlement-stores.md)：**先打款后认领是唯一救不回来的方向**——认领了没打款，重试会对着同一个 `order_id` 补上；打款了没认领，这张凭证还能对着另一个 `order_id` 再结一次，而事后没有任何东西能把它和一笔真的复购区分开。真实的 SQL / 事务存储实现在 `ocp-catalog-instances`：协议仓定契约，运行时选存储。
 
 端到端的样子见 [`examples/typescript`](../../examples/typescript/README.md)——curl 取公钥、关掉节点、离线验通、离线结算。
 
@@ -262,6 +266,6 @@ else if (result.action === 'settled') console.log(result.record.agentId, result.
 ## 状态
 
 - ✅ TypeScript：规范化（Level 1）、Ed25519、JWKS、归因签发（origin / relay）、完整验证器、`ConversionReport` 结算与裁决
-- ⚠️ `JtiRegistry` 与 `SettlementLedger` 都是内存实现，生产必须换成事务性存储（见上）
-- ⏸ Python / Go：backlog。75 条向量语言中立，补实现不会返工（两周计划 §5 已登记这个代价：**两周内只有 TS 能验签**）
+- ✅ Python / Go：规范化与文档签名已补齐，3×3 互操作矩阵全绿（`scripts/interop/signature-matrix.mjs`）。归因签发与结算仍只有 TS
+- ⚠️ `JtiRegistry` 与 `SettlementLedger` 只是**演示实现**（内存）。生产要实现 `ReplayStore` / `LedgerStore` 并接上真实事务，见 [`docs/specs/attribution/settlement-stores.md`](../../docs/specs/attribution/settlement-stores.md)
 - ⛔ Level 2（完整双精度）：v1 不实现，见规范 §7.4。需要签含金额的对象时，**首选把金额改成最小单位整数**，不是实现 Level 2

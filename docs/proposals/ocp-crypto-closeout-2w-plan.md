@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **进行中**——T1、T2、T3、T4 已完成（2026-09-20） |
+| 状态 | **进行中**——T1、T2、T3、T4、T5 已完成（2026-09-20） |
 | 版本 | v1.0 |
 | 日期 | 2026-09-18 |
 | 起止 | **2026-09-21（周一）– 2026-10-09（周五）**，10 个工作日（跨国庆，见下） |
@@ -98,7 +98,7 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 | 小任务 | 天 | 内容 | 完成判据 |
 |---|---|---|---|
 | **T4** ✅ | 09-28 / 29 | `examples/python` 与 `examples/go` 的**文档签名**实现（两者目前只有归因验签），复用 `fixtures/signature/manifest-v1.json` | 三语言产出的 `expected_signed_document` **逐字节相同**；12 条反例三语言给出**同一个错误码与同一个信任上限**；3×3 签名矩阵 9 格全绿 |
-| **T5** | 09-30 | 归因的两处生产缺口：<br>① example server 联署中继跳前先验上游链（按 `catalog_id` 取 JWKS 的解析器）<br>② `JtiRegistry` / `SettlementLedger` 抽成 `ReplayStore` / `LedgerStore` 接口 + 内存实现 + **事务契约文档** | 上游链被伪造时**拒绝联署**，有测试；两个接口各有一份「认领与打款必须同事务」的契约文档，内存实现标注为仅供演示 |
+| **T5** ✅ | 09-30 | 归因的两处生产缺口：<br>① example server 联署中继跳前先验上游链（按 `catalog_id` 取 JWKS 的解析器）<br>② `JtiRegistry` / `SettlementLedger` 抽成 `ReplayStore` / `LedgerStore` 接口 + 内存实现 + **事务契约文档** | 上游链被伪造时**拒绝联署**，有测试；两个接口各有一份「认领与打款必须同事务」的契约文档，内存实现标注为仅供演示 |
 
 > **T4 为什么不是「再做一遍归因互操作」**：归因签的是「链前缀 + 核心声明」，文档签的是「信封去掉 signature」，两套签名材料不同、互不接受。Python / Go 现有的验签代码一行都复用不了签名材料构造，但 canonical 层可以全复用——这也是为什么它是 2 天而不是 4 天。
 
@@ -115,6 +115,22 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 > ④ **Go 侧 `encoding/json` 必须开 `UseNumber()`**。否则整数一律变 float64，规范化时只能去猜一个
 > 已经被丢掉的字面量，症状是一份没人动过的文档报 `payload_mismatch`。
 > 另：三个 agent 的 `checks()` 都改成复用 `negativeOutcomes()`，单测路径和矩阵路径不会各走各的。
+
+> **T5 交付说明（2026-09-20）**：两条判据都有测试兜着——`server.test.ts` 47/47（其中
+> `联署前先验上游链（T5）` 7 条），`settlement.test.ts` 34/34（其中事务契约 6 条）。六个判断记在这里：
+> ① **「没配上游公钥就一跳都不中继」是默认值**，不是「有密钥就顺手验一下」。后者长得像优雅降级，
+> 但伪造者会挑那个**没配**的 `catalog_id`，等于这道检查只拦老实人。
+> ② **中继时故意不查第 7 行与第 10 行**。它们是结算时的规则：第 7 行要比对一份还不存在的回报的
+> `provider_id`；在 resolve 时认领 `jti`，是为一笔可能永远不会发生的订单烧掉一张凭证。
+> ③ **接口方法允许返回 `Promise`**（`T | Promise<T>`）。`claim` 只能返回 `boolean` 的接口，除了
+> 另一个 `Map` 谁都实现不了——抽象会变成纯装饰，而 T5 存在的理由就是让 SQL 存储能接进来。
+> ④ **事务做成 `SettlementTransaction` 包装函数，不是往参数里塞事务句柄**。知道连接的是存储实现，
+> 把某个驱动特有的对象穿过本包的类型，下一个驱动就实现不了了。`nonTransactional` 写成具名导出
+> 而不是内联箭头，是为了让「生产上没覆盖 `transaction`」在 code review 里看得见。
+> ⑤ **本节点的公钥要注册进上游表**。否则一条已经过本节点的链会先挂在 `key_not_found` 上，§4.4 的
+> 环路检查根本走不到——同样是拒签，但报成了「我不认识我自己」，两条旧测试当时正是为错误的理由通过的。
+> ⑥ **篡改测试不能改签名的最后一个字符**。86 字符的 base64url 尾字符只带填充位，解码器可以忽略，
+> 改了还原成同样的 64 字节，节点会正常联署——第一版就是这么假绿的，现在改中间那个字符。
 
 > **T5 的边界**：本仓只交付**接口与事务契约**，真实的 SQL / 事务存储实现归 `ocp-catalog-instances`。理由和生产密钥托管一样：协议仓定契约，运行时选存储。`SettlementLedger` 已经留好了从记录重建的构造函数，换存储不用动裁决逻辑。
 
@@ -193,7 +209,7 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 | T2 ✅ | 09-23/24 | `ocp catalog inspect --verify` + 篡改检测 | 2 | 篡改一字节退出码非 0 |
 | T3 ✅ | 09-25 | `trust_profile` 落地 + 降级语义 | 1 | 降级触发缓存作废，有测试 |
 | T4 ✅ | 09-28/29 | Python + Go 文档签名 + 3×3 矩阵 | 2 | **9 格全绿**，反例同码同信任上限 |
-| T5 | 09-30 | 上游链验证 + 去重仓接口与事务契约 | 1 | 伪造上游链拒绝联署 |
+| T5 ✅ | 09-30 | 上游链验证 + 去重仓接口与事务契约 | 1 | **伪造上游链拒绝联署**，两个接口各有事务契约 |
 | T6 | 10-08 | activity 归因关联 | 1 | 公开投影无明文归因主体 |
 | T7 | 10-09 | 站点四件套 + skill + updates + README | 1 | 四条命令全绿 |
 
@@ -207,7 +223,9 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 | T4 | `examples/python/ocp_signature.py`（新）、`examples/go/ocpcrypto/signature.go`（新） | 文档签名实现 |
 | T4 | `examples/python/signature_interop_agent.py`、`examples/go/interopsig/`、`scripts/interop/ts-signature-agent.mjs`（均新） | 三语言 agent，四个动词 `sign / verify / negatives / selftest` |
 | T4 | `scripts/interop/signature-matrix.mjs`（新） | 3×3 文档签名矩阵，与归因矩阵分开跑 |
-| T5 | `packages/ocp-crypto/src/stores.ts`（新） | `ReplayStore` / `LedgerStore` 接口与事务契约 |
+| T5 | `packages/ocp-crypto/src/stores.ts`（新） | `ReplayStore` / `LedgerStore` 接口、`SettlementTransaction` 与 `nonTransactional` |
+| T5 | `docs/specs/attribution/settlement-stores.md`（新） | 「认领与打款必须同事务」契约文档 |
+| T5 | `examples/typescript/src/upstream-keys.ts`（新） | 上游 `catalog_id` → JWKS，默认谁都不信 |
 | T6 | `packages/ocp-activity-schema/src/index.ts` | 归因关联字段与公开投影 |
 | T7 | `apps/ocp-site-web/src/content/docs/` + `locales/zh/` | 站点文档（双语） |
 

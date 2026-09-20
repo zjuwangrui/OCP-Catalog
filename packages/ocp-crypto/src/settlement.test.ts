@@ -9,6 +9,7 @@ import {
   type ConversionStatus,
 } from './settlement';
 import { JtiRegistry, staticKeyResolver, verifyAttributionToken } from './verify';
+import { nonTransactional, type LedgerStore, type ReplayStore } from './stores';
 
 const ORIGIN = generateEd25519KeyPair();
 const RELAY_A = generateEd25519KeyPair();
@@ -635,5 +636,164 @@ describe('replayGuard 的只读模式（claim: false）', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('replayed_jti');
+  });
+});
+
+describe('ReplayStore / LedgerStore 接口与事务契约（T5 判据二）', () => {
+  /**
+   * A store pair that is async and records the call order, standing in for the
+   * durable implementation the contract is written for. If `settleOrder` only
+   * worked against the in-memory classes, the interfaces would be decorative.
+   */
+  function asyncStores() {
+    const ledger = new SettlementLedger();
+    const registry = new JtiRegistry();
+    const calls: string[] = [];
+    const tick = <T>(value: T): Promise<T> => Promise.resolve(value);
+
+    const replayStore: ReplayStore = {
+      claim: (jti, orderId, expiresAt) => {
+        calls.push('claim');
+        return tick(registry.claim(jti, orderId, expiresAt));
+      },
+      orderOf: (jti) => tick(registry.orderOf(jti)),
+    };
+    const ledgerStore: LedgerStore = {
+      recordOf: (orderId) => tick(ledger.recordOf(orderId)),
+      outcomeOf: (reportId) => tick(ledger.outcomeOf(reportId)),
+      commit: (record) => {
+        calls.push('commit');
+        ledger.commit(record);
+        return tick(undefined);
+      },
+    };
+    return { ledger: ledgerStore, jtiRegistry: replayStore, calls, inner: ledger };
+  }
+
+  test('两个接口都可以是异步的——持久化 store 是一次网络调用', async () => {
+    const stores = asyncStores();
+    const result = await settleOrder({
+      reports: [report({ attribution_token: originToken() })],
+      resolveKey: allKeys,
+      ledger: stores.ledger,
+      jtiRegistry: stores.jtiRegistry,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.action === 'held') return;
+    expect(result.record.orderId).toBe('ord_1');
+    expect(stores.inner.settledOrders).toBe(1);
+  });
+
+  test('认领与提交都发生在同一个 transaction 回调里', async () => {
+    const stores = asyncStores();
+    const inside: string[] = [];
+    let opened = 0;
+
+    const result = await settleOrder({
+      reports: [report({ attribution_token: originToken() })],
+      resolveKey: allKeys,
+      ledger: stores.ledger,
+      jtiRegistry: stores.jtiRegistry,
+      transaction: async (work) => {
+        opened += 1;
+        const before = stores.calls.length;
+        const out = await work();
+        inside.push(...stores.calls.slice(before));
+        return out;
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    // One transaction, both writes inside it. A deployment's payout goes in the
+    // same callback, which is the whole reason the hook is shaped this way.
+    expect(opened).toBe(1);
+    expect(inside).toEqual(['claim', 'commit']);
+  });
+
+  test('事务抛错会往上抛，不会变成一条裁决', async () => {
+    const stores = asyncStores();
+    const err = await rejection(
+      settleOrder({
+        reports: [report({ attribution_token: originToken() })],
+        resolveKey: allKeys,
+        ledger: stores.ledger,
+        jtiRegistry: stores.jtiRegistry,
+        transaction: async () => {
+          throw new Error('deadlock detected');
+        },
+      }),
+    );
+    // A failed transaction says nothing about the token. Reporting it as a
+    // verdict would tell the merchant their token was bad when the database
+    // was.
+    expect(err.message).toBe('deadlock detected');
+    expect(stores.inner.settledOrders).toBe(0);
+  });
+
+  test('回滚后没有半截状态——认领没留下，记录也没留下', async () => {
+    const ledger = new SettlementLedger();
+    const registry = new JtiRegistry();
+    const staged: Array<() => void> = [];
+
+    // The minimum a transactional store must do: buffer the writes and apply
+    // them only on commit. A store that applies `claim` eagerly leaves the jti
+    // burned against an order that was never paid.
+    const stores = {
+      ledger: {
+        recordOf: (orderId: string) => ledger.recordOf(orderId),
+        outcomeOf: (reportId: string) => ledger.outcomeOf(reportId),
+        commit: (record) => {
+          staged.push(() => ledger.commit(record));
+        },
+      } satisfies LedgerStore,
+      jtiRegistry: {
+        claim: (jti: string, orderId: string, expiresAt: Date) => {
+          staged.push(() => void registry.claim(jti, orderId, expiresAt));
+          return registry.orderOf(jti) === undefined || registry.orderOf(jti) === orderId;
+        },
+        orderOf: (jti: string) => registry.orderOf(jti),
+      } satisfies ReplayStore,
+    };
+
+    await rejection(
+      settleOrder({
+        reports: [report({ attribution_token: originToken() })],
+        resolveKey: allKeys,
+        ...stores,
+        transaction: async (work) => {
+          await work();
+          throw new Error('rolled back after the work, before the commit');
+        },
+      }),
+    );
+
+    expect(ledger.settledOrders).toBe(0);
+    expect(registry.orderOf('atr_origin')).toBeUndefined();
+    expect(staged).toHaveLength(2);
+  });
+
+  test('nonTransactional 是默认值——内存实现下与显式传入等价', async () => {
+    const withDefault = freshSettler();
+    const withExplicit = freshSettler();
+    const input = () => report({ attribution_token: originToken() });
+
+    const a = await settleOrder({ reports: [input()], resolveKey: allKeys, ...withDefault });
+    const b = await settleOrder({
+      reports: [input()],
+      resolveKey: allKeys,
+      ...withExplicit,
+      transaction: nonTransactional,
+    });
+
+    expect(a.ok && b.ok).toBe(true);
+    if (!a.ok || !b.ok || a.action === 'held' || b.action === 'held') return;
+    expect(a.record).toEqual(b.record);
+  });
+
+  test('内存实现满足接口——这是它们唯一被允许的用途', () => {
+    const replay: ReplayStore = new JtiRegistry();
+    const ledger: LedgerStore = new SettlementLedger();
+    expect(replay.claim('atr_x', 'ord_x', new Date(Date.now() + 60_000))).toBe(true);
+    expect(ledger.recordOf('ord_x')).toBeUndefined();
   });
 });

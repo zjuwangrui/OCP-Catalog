@@ -25,6 +25,7 @@ import {
 import { AttributionError, CryptoError } from './errors';
 import { OCP_SIGNATURE_ALG, selectVerificationKey, type Ed25519PublicJwk } from './keys';
 import type { JwksCache } from './jwks';
+import type { ReplayStore } from './stores';
 
 /**
  * Resolves the public key for one hop.
@@ -63,7 +64,7 @@ export function jwksCacheKeyResolver(cache: JwksCache): AttributionKeyResolver {
 }
 
 /**
- * §7.1 row 10 — the `jti` replay guard.
+ * §7.1 row 10 — the in-memory `jti` replay guard. **Demonstration only.**
  *
  * The rule the spec draws is narrow and worth restating: the same `jti` against
  * the **same** `order_id` is normal traffic (a retry, a status update from
@@ -80,17 +81,18 @@ export function jwksCacheKeyResolver(cache: JwksCache): AttributionKeyResolver {
  * 2. **It is per-process.** Two settlement workers behind a load balancer hold
  *    two separate maps, so the same token can be claimed once in each.
  *
- * The replacement is a row in the same transactional store that records the
- * settlement, keyed on `jti` with the `order_id` beside it — the claim and the
- * payout have to commit together or the guard can be lost after the money
- * moves. What is here is enough for tests and a single-process reference
+ * The replacement implements {@link ReplayStore} over a row in the same
+ * transactional store that records the settlement, keyed on `jti` with the
+ * `order_id` beside it — the claim and the payout have to commit together or
+ * the guard can be lost after the money moves. `stores.ts` states that contract
+ * in full. What is here is enough for tests and a single-process reference
  * implementation, and nothing more.
  *
  * Retention is derived, not configured: an entry is kept until the token's own
  * `exp`. Past that, §7.1 row 9 rejects the token anyway, so remembering its
  * `jti` any longer protects nothing.
  */
-export class JtiRegistry {
+export class JtiRegistry implements ReplayStore {
   readonly #claims = new Map<string, { orderId: string; expiresAtMs: number }>();
   readonly #now: () => number;
   readonly #maxEntries: number;
@@ -173,8 +175,12 @@ export interface VerifyAttributionTokenParams {
    * several candidate tokens for one order must evaluate row 10 on all of them
    * but claim only the one that wins adjudication (§7.2) — claiming on behalf
    * of a loser would bind its `jti` to an order it was never settled against.
+   *
+   * Typed as {@link ReplayStore}, not as `JtiRegistry`: the registry is the
+   * in-memory demonstration, and a verifier that only accepts it cannot be
+   * pointed at the durable store §7.1 row 10 actually requires.
    */
-  replayGuard?: { registry: JtiRegistry; orderId: string; claim?: boolean };
+  replayGuard?: { registry: ReplayStore; orderId: string; claim?: boolean };
 }
 
 export interface AttributionVerdict {
@@ -326,8 +332,11 @@ export async function verifyAttributionToken(
   // Row 10 — last, so nothing below can reject a token whose jti we just spent.
   if (replayGuard) {
     const { registry, orderId, claim = true } = replayGuard;
-    const held = claim ? (registry.claim(token.jti, orderId, exp) ? undefined : registry.orderOf(token.jti))
-                       : registry.orderOf(token.jti);
+    // Awaited because ReplayStore may be a database. The in-memory registry
+    // returns plain values and awaiting them costs a microtask.
+    const held = claim
+      ? ((await registry.claim(token.jti, orderId, exp)) ? undefined : await registry.orderOf(token.jti))
+      : await registry.orderOf(token.jti);
     if (held !== undefined && held !== orderId) {
       return fail(
         'replayed_jti',
