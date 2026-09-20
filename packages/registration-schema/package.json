@@ -22,7 +22,8 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "src/index.ts"
+    "src/index.ts",
+    "src/trust-profile.ts"
   ],
   "publishConfig": {
     "access": "public"
@@ -34,6 +35,7 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
+    "@ocp-catalog/ocp-crypto": "^0.2.1",
     "zod": "^4.1.12"
   }
 }

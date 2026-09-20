@@ -298,3 +298,8 @@ export type CatalogVerificationRequest = z.infer<typeof catalogVerificationReque
 export type CatalogVerificationResult = z.infer<typeof catalogVerificationResultSchema>;
 export type CatalogRefreshResult = z.infer<typeof catalogRefreshResultSchema>;
 export type CatalogTokenRotationResult = z.infer<typeof catalogTokenRotationResultSchema>;
+
+export {
+  applyManifestVerification,
+  type RouteHintTrustOutcome,
+} from './trust-profile';

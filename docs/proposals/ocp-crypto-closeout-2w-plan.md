@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **进行中**——T1、T2 已完成（2026-09-19） |
+| 状态 | **进行中**——T1、T2、T3 已完成（2026-09-20） |
 | 版本 | v1.0 |
 | 日期 | 2026-09-18 |
 | 起止 | **2026-09-21（周一）– 2026-10-09（周五）**，10 个工作日（跨国庆，见下） |
@@ -60,7 +60,7 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 |---|---|---|---|
 | **T1**（原 W3-T2） ✅ | 09-21 / 22 | ① `examples/typescript` 用已有的 `SIGNING_KEY` 签发 signed manifest<br>② `federation.trust_strategy.{manifest_signed, signature_algorithms}` 真实填充<br>③ `/.well-known/ocp-catalog` 的 discovery 文档同样签发（schema 已留好可选 `signature`） | manifest 与 discovery 同时通过 **JSON Schema 与 Zod 两侧**校验；`server.test.ts` 新增断言：取到公钥后**离线**验通 |
 | **T2**（原 W3-T3） ✅ | 09-23 / 24 | CLI `ocp catalog inspect --verify` + 篡改检测 | 正例退出码 `0`；**篡改任意一字节 → 退出码非 0**；§8 八个错误码都能从 CLI 输出里读到，不是一句「验签失败」 |
-| **T3**（原 W4-T3 ②③） | 09-25 | ① `CatalogRouteHint.trust_profile` 填 `manifest_hash` / `issuer` / `signature_alg`<br>② 降级语义：验签失败 → `trust_tier` 降级 → 触发既有 `downgrade_invalidates_cache` | 一份被篡改的 manifest 让路由提示从 `verified` 掉到 `unknown` **且缓存被作废**，有测试；`unsigned` / `signature_expired` 掉到 `unverified` **且缓存保留** |
+| **T3**（原 W4-T3 ②③） ✅ | 09-25 | ① `CatalogRouteHint.trust_profile` 填 `manifest_hash` / `issuer` / `signature_alg`<br>② 降级语义：验签失败 → `trust_tier` 降级 → 触发既有 `downgrade_invalidates_cache` | 一份被篡改的 manifest 让路由提示从 `verified` 掉到 `unknown` **且缓存被作废**，有测试；`unsigned` / `signature_expired` 掉到 `unverified` **且缓存保留** |
 
 > **T1 的坑**：`trust_strategy` 在 `federation` 里面，不在 manifest 顶层。写在顶层时 Zod 照收（非 `.strict()`），JSON Schema 拒收（顶层 `additionalProperties: false`）——两边口径差正好把这个错藏住。W3-T1 的向量已经踩过一次。
 
@@ -78,6 +78,16 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 > 目前验不过也退 0，同一个洞，按「禁止跨小任务混合提交」留到单独一个提交里补。
 
 > **T3 的现成件**：`trustCeilingFor()` 已经在 `packages/ocp-crypto/src/signature.ts` 里，把验签结果映射成「信任上限 + 是否作废缓存」。T3 调它，不要另写一份映射——规范 §9 只有一份，实现漂了会出现「CLI 说降级、路由提示说没降」。
+
+> **T3 交付说明（2026-09-20）**：三条口径写在 `applyManifestVerification()` 里，都是从「上限不是判决」推出来的。
+> ① **验通不抬等级**：注册方说 `verified_domain` 就还是 `verified_domain`。§7.2 说得很清楚，签名验通只解锁
+> `verified` 这个上限，不断言 manifest 内容为真——域名验证是另一条轴，这个函数没看到它的任何证据。
+> ② **降级时清掉三个证据字段**：`manifest_hash` / `issuer` / `signature_alg` 只在验通时写。把上一次验通的哈希
+> 留在一份验不过的提示旁边，正是这几个字段本来要防的那种投毒。
+> ③ **节点声明 `downgrade_invalidates_cache: false` 挡不住自己伪造的 manifest 作废缓存**。和 T1 里
+> `trust_tier` 同一个道理：这是验签方的结论，不是被验方的声明。
+> 另外顶层 `trust_tier` 与 `trust_profile.trust_tier` 一起降，有断言钉住——只读顶层字段的消费方不能看到
+> `verified` 而底下写着 `unknown`。
 
 **周五演示**：两条命令，对正常节点验签通过 / 对篡改副本失败；再并排打印降级前后的 route hint。
 
@@ -167,7 +177,7 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 |---|---|---|---|---|
 | T1 ✅ | 09-21/22 | 节点签发 signed manifest + discovery | 2 | 两侧 schema 校验通过，离线验通 |
 | T2 ✅ | 09-23/24 | `ocp catalog inspect --verify` + 篡改检测 | 2 | 篡改一字节退出码非 0 |
-| T3 | 09-25 | `trust_profile` 落地 + 降级语义 | 1 | 降级触发缓存作废，有测试 |
+| T3 ✅ | 09-25 | `trust_profile` 落地 + 降级语义 | 1 | 降级触发缓存作废，有测试 |
 | T4 | 09-28/29 | Python + Go 文档签名 + 3×3 矩阵 | 2 | **9 格全绿**，反例同码同信任上限 |
 | T5 | 09-30 | 上游链验证 + 去重仓接口与事务契约 | 1 | 伪造上游链拒绝联署 |
 | T6 | 10-08 | activity 归因关联 | 1 | 公开投影无明文归因主体 |
@@ -179,7 +189,7 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 |---|---|---|
 | T1 | `examples/typescript/src/server.ts` | 签发 signed manifest 与 discovery |
 | T2 | `packages/ocp-cli/src/inspect-verify.ts`（新） | 纯模块，I/O 归调用方 |
-| T3 | `packages/registration-schema/src/index.ts` | `trust_profile` 真实值与降级 |
+| T3 | `packages/registration-schema/src/trust-profile.ts`（新） | `trust_profile` 真实值与降级，调 `trustCeilingFor()` |
 | T4 | `examples/python/ocp_signature.py`（新）、`examples/go/ocpcrypto/signature.go`（新） | 文档签名实现 |
 | T5 | `packages/ocp-crypto/src/stores.ts`（新） | `ReplayStore` / `LedgerStore` 接口与事务契约 |
 | T6 | `packages/ocp-activity-schema/src/index.ts` | 归因关联字段与公开投影 |
