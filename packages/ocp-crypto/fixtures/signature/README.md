@@ -55,7 +55,25 @@ would fail at step 7 as `signature_invalid` and never reach step 8.
 | Implementation | Command |
 |---|---|
 | TypeScript | `bun test packages/ocp-crypto/src/signature-vectors.test.ts` |
+| TypeScript agent | `node --experimental-strip-types --import ./scripts/interop/register-ts.mjs scripts/interop/ts-signature-agent.mjs selftest` |
+| Python | `python examples/python/signature_interop_agent.py selftest` |
+| Go | `go run ./interopsig selftest` (from `examples/go`) |
+| all nine cells | `node --experimental-strip-types --import ./scripts/interop/register-ts.mjs scripts/interop/signature-matrix.mjs` |
 
-Python and Go ports join the way they did for the attribution vectors: read this
-file, reproduce `expected_signed_document`, then reproduce every `expected_error`
-and `expected_trust_tier`.
+A new implementation joins the matrix by exposing the same four verbs —
+`sign [--expiring]`, `verify <document.json>`, `negatives`, `selftest` — over
+this file. The runner knows nothing else about the languages it drives.
+
+`negatives` is its own verb rather than twelve `verify` calls because two of the
+negatives carry a `verify_overrides.at`, and passing that on a command line is
+the likeliest place for one language to get it quietly wrong. The runner
+compares the three arrays against this file **and** against each other:
+agreement alone would be satisfied by three implementations wrong in the same
+way, and matching the file alone would not say which one drifted.
+
+This matrix is deliberately separate from
+[the attribution one](../interop/README.md), because the two sign different
+material — an attribution chain node signs the chain prefix plus the token's
+core claims, a document signs its envelope minus `signature`. One runner
+reporting "interop: green" over both would let either regress behind the
+other's result.

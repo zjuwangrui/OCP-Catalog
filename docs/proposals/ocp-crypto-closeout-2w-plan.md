@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **进行中**——T1、T2、T3 已完成（2026-09-20） |
+| 状态 | **进行中**——T1、T2、T3、T4 已完成（2026-09-20） |
 | 版本 | v1.0 |
 | 日期 | 2026-09-18 |
 | 起止 | **2026-09-21（周一）– 2026-10-09（周五）**，10 个工作日（跨国庆，见下） |
@@ -97,10 +97,24 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 
 | 小任务 | 天 | 内容 | 完成判据 |
 |---|---|---|---|
-| **T4** | 09-28 / 29 | `examples/python` 与 `examples/go` 的**文档签名**实现（两者目前只有归因验签），复用 `fixtures/signature/manifest-v1.json` | 三语言产出的 `expected_signed_document` **逐字节相同**；12 条反例三语言给出**同一个错误码与同一个信任上限**；3×3 签名矩阵 9 格全绿 |
+| **T4** ✅ | 09-28 / 29 | `examples/python` 与 `examples/go` 的**文档签名**实现（两者目前只有归因验签），复用 `fixtures/signature/manifest-v1.json` | 三语言产出的 `expected_signed_document` **逐字节相同**；12 条反例三语言给出**同一个错误码与同一个信任上限**；3×3 签名矩阵 9 格全绿 |
 | **T5** | 09-30 | 归因的两处生产缺口：<br>① example server 联署中继跳前先验上游链（按 `catalog_id` 取 JWKS 的解析器）<br>② `JtiRegistry` / `SettlementLedger` 抽成 `ReplayStore` / `LedgerStore` 接口 + 内存实现 + **事务契约文档** | 上游链被伪造时**拒绝联署**，有测试；两个接口各有一份「认领与打款必须同事务」的契约文档，内存实现标注为仅供演示 |
 
 > **T4 为什么不是「再做一遍归因互操作」**：归因签的是「链前缀 + 核心声明」，文档签的是「信封去掉 signature」，两套签名材料不同、互不接受。Python / Go 现有的验签代码一行都复用不了签名材料构造，但 canonical 层可以全复用——这也是为什么它是 2 天而不是 4 天。
+
+> **T4 交付说明（2026-09-20）**：9 格全绿，三语言签出的文档规范哈希同为
+> `sha256:c05a532c…f85c03`，12 条反例同码同上限。四个判断记在这里：
+> ① **两套矩阵不合并**。`matrix.mjs` 管归因、`signature-matrix.mjs` 管文档，各自跑。合成一句
+> 「interop: green」会让其中一边退化躲在另一边的结果后面——而它们签的本来就不是同一份材料。
+> ② **加了第四个动词 `negatives`**，而不是让矩阵解析 selftest 的输出、或把 `--at` 从命令行传进去。
+> 12 条反例里有 2 条自带 `verify_overrides.at`，命令行传时间是最容易某一种语言悄悄传错的地方。
+> 现在每种语言一次性吐一份结构化 JSON（3 次子进程调用，不是 36 次），矩阵**既比对 fixture 又两两比对**：
+> 只比对彼此，三家用同一种方式错会一起通过；只比对 fixture，又说不出是哪种语言漂了。
+> ③ **`invalid_key` 也映射成 `key_not_found`**。和归因 §7.1 第 4 行同一种读法：一把验不了的密钥，
+> 就是一把没找到的密钥。TS 参考实现是这么写的，移植时差点漏掉，是逐行对 `signature.ts` 才发现的。
+> ④ **Go 侧 `encoding/json` 必须开 `UseNumber()`**。否则整数一律变 float64，规范化时只能去猜一个
+> 已经被丢掉的字面量，症状是一份没人动过的文档报 `payload_mismatch`。
+> 另：三个 agent 的 `checks()` 都改成复用 `negativeOutcomes()`，单测路径和矩阵路径不会各走各的。
 
 > **T5 的边界**：本仓只交付**接口与事务契约**，真实的 SQL / 事务存储实现归 `ocp-catalog-instances`。理由和生产密钥托管一样：协议仓定契约，运行时选存储。`SettlementLedger` 已经留好了从记录重建的构造函数，换存储不用动裁决逻辑。
 
@@ -178,7 +192,7 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 | T1 ✅ | 09-21/22 | 节点签发 signed manifest + discovery | 2 | 两侧 schema 校验通过，离线验通 |
 | T2 ✅ | 09-23/24 | `ocp catalog inspect --verify` + 篡改检测 | 2 | 篡改一字节退出码非 0 |
 | T3 ✅ | 09-25 | `trust_profile` 落地 + 降级语义 | 1 | 降级触发缓存作废，有测试 |
-| T4 | 09-28/29 | Python + Go 文档签名 + 3×3 矩阵 | 2 | **9 格全绿**，反例同码同信任上限 |
+| T4 ✅ | 09-28/29 | Python + Go 文档签名 + 3×3 矩阵 | 2 | **9 格全绿**，反例同码同信任上限 |
 | T5 | 09-30 | 上游链验证 + 去重仓接口与事务契约 | 1 | 伪造上游链拒绝联署 |
 | T6 | 10-08 | activity 归因关联 | 1 | 公开投影无明文归因主体 |
 | T7 | 10-09 | 站点四件套 + skill + updates + README | 1 | 四条命令全绿 |
@@ -191,6 +205,8 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 | T2 | `packages/ocp-cli/src/inspect-verify.ts`（新） | 纯模块，I/O 归调用方 |
 | T3 | `packages/registration-schema/src/trust-profile.ts`（新） | `trust_profile` 真实值与降级，调 `trustCeilingFor()` |
 | T4 | `examples/python/ocp_signature.py`（新）、`examples/go/ocpcrypto/signature.go`（新） | 文档签名实现 |
+| T4 | `examples/python/signature_interop_agent.py`、`examples/go/interopsig/`、`scripts/interop/ts-signature-agent.mjs`（均新） | 三语言 agent，四个动词 `sign / verify / negatives / selftest` |
+| T4 | `scripts/interop/signature-matrix.mjs`（新） | 3×3 文档签名矩阵，与归因矩阵分开跑 |
 | T5 | `packages/ocp-crypto/src/stores.ts`（新） | `ReplayStore` / `LedgerStore` 接口与事务契约 |
 | T6 | `packages/ocp-activity-schema/src/index.ts` | 归因关联字段与公开投影 |
 | T7 | `apps/ocp-site-web/src/content/docs/` + `locales/zh/` | 站点文档（双语） |
