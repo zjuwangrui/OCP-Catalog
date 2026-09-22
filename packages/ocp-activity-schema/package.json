@@ -30,9 +30,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "bun ../../scripts/build-protocol-package.ts",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "bun test --pass-with-no-tests"
+    "test": "bun test"
   },
   "dependencies": {
     "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@ocp-catalog/ocp-crypto": "workspace:*"
   }
 }

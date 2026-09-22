@@ -15,6 +15,7 @@ export type PublicActivityEvent = {
   result_count_bucket: string;
   public_summary: string;
   correlation_id_hash: string | null;
+  attribution_outcome?: string | null;
 };
 
 export type ActivityRollups = {
