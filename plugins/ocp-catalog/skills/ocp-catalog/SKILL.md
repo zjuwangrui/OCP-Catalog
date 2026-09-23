@@ -52,6 +52,9 @@ Read `references/protocol-boundaries.md` before designing or changing OCP integr
 - Provider supplies object data to a Catalog.
 - CLI, MCP, WebMCP, plugins, and skills are adapter/tooling layers.
 - Activity API collects redacted events; the public website reads only public projections.
+- Signed documents and attribution chains must be verified before their trust or settlement claims are used.
+
+The cryptographic verification, durable attribution state, and public projection privacy rules are detailed in `references/protocol-boundaries.md`.
 
 ## Query Procedure
 

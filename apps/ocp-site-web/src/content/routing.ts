@@ -27,6 +27,7 @@ export const docsRouteEntries = [
   { contentId: '/registration/catalog-search', publicPath: '/docs/protocols/registration-v1/catalog-search' },
   { contentId: '/registration/catalog-route-hint', publicPath: '/docs/protocols/registration-v1/catalog-route-hint' },
   { contentId: '/registration/verification-refresh', publicPath: '/docs/protocols/registration-v1/verification-refresh' },
+  { contentId: '/crypto-attribution/overview', publicPath: '/docs/protocols/crypto-attribution/overview' },
   { contentId: '/examples/minimal-catalog', publicPath: '/docs/examples/minimal-catalog' },
   { contentId: '/examples/minimal-provider', publicPath: '/docs/examples/minimal-provider' },
   { contentId: '/examples/shopify-provider', publicPath: '/docs/examples/shopify-provider' },

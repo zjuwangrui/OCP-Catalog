@@ -3,7 +3,16 @@
     "allow": [
       "Bash(lark-cli auth *)",
       "Bash(python -)",
-      "Bash(rm _patch.log)"
+      "Bash(rm _patch.log)",
+      "Bash(git -C /d/constructing_projects/OCP-Catalog diff --stat)",
+      "Bash(git -C /d/constructing_projects/OCP-Catalog diff .claude/settings.json)",
+      "Bash(git add *)",
+      "Bash(node *)",
+      "Bash(node:*)"
+
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\lenovo\\AppData\\Local\\Temp\\ocpcheck"
     ]
   }
 }

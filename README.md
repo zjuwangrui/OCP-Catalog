@@ -32,6 +32,7 @@ packages/
   ocp-schema/                   Zod schemas: manifest, query, resolve, objects, health
   registration-schema/          Zod schemas for the registration protocol
   ocp-activity-schema/          Zod schemas for catalog activity events
+  ocp-crypto/                   Canonical JSON, signatures, JWKS, and attribution
   ocp-client/                   Typed client helpers + validators
   shared/                       Small shared utilities
   webmcp-adapter/               WebMCP adapter for browser tools
@@ -50,6 +51,7 @@ The published protocol packages (npm, scope `@ocp-catalog`):
 [`ocp-schema`](https://www.npmjs.com/package/@ocp-catalog/ocp-schema),
 [`registration-schema`](https://www.npmjs.com/package/@ocp-catalog/registration-schema),
 [`ocp-activity-schema`](https://www.npmjs.com/package/@ocp-catalog/ocp-activity-schema),
+[`ocp-crypto`](https://www.npmjs.com/package/@ocp-catalog/ocp-crypto),
 [`ocp-client`](https://www.npmjs.com/package/@ocp-catalog/ocp-client),
 [`shared`](https://www.npmjs.com/package/@ocp-catalog/shared),
 [`webmcp-adapter`](https://www.npmjs.com/package/@ocp-catalog/webmcp-adapter),

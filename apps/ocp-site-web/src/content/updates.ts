@@ -17,6 +17,22 @@ export type SiteUpdate = {
 
 export const updates: SiteUpdate[] = [
   {
+    slug: 'crypto-attribution-closeout',
+    publishedAt: '2026-10-09',
+    category: 'Protocol',
+    version: 'v1.0',
+    breaking: false,
+    tags: ['crypto', 'signatures', 'attribution', 'activity'],
+    title: {
+      en: 'Signed protocol documents and commercial attribution are now documented',
+      zh: '签名协议文档与商业归因现已形成完整文档',
+    },
+    summary: {
+      en: 'A new bilingual guide connects signed manifests, trust verification, multi-hop attribution, durable settlement contracts, and the privacy boundary of public activity projections.',
+      zh: '新的双语指南串联签名 manifest、信任验证、多跳归因、持久化结算契约和公开 activity 投影的隐私边界。',
+    },
+  },
+  {
     slug: 'ocp-catalog-integrates-agent-platforms',
     publishedAt: '2026-05-29',
     category: 'Implementation',

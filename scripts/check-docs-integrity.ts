@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { artifactRegistry } from '../apps/ocp-site-web/src/content/artifacts';
 import { coreArtifacts } from '../apps/ocp-site-web/src/content/artifacts/core';
+import { cryptoArtifacts } from '../apps/ocp-site-web/src/content/artifacts/crypto';
 import { examplesArtifacts } from '../apps/ocp-site-web/src/content/artifacts/examples';
 import { handshakeArtifacts } from '../apps/ocp-site-web/src/content/artifacts/handshake';
 import { registrationArtifacts } from '../apps/ocp-site-web/src/content/artifacts/registration';
@@ -98,6 +99,7 @@ const errors: string[] = [];
 const artifactRouteCounts = new Map<string, string[]>();
 for (const [groupName, group] of [
   ['core', coreArtifacts],
+  ['crypto', cryptoArtifacts],
   ['handshake', handshakeArtifacts],
   ['registration', registrationArtifacts],
   ['examples', examplesArtifacts],

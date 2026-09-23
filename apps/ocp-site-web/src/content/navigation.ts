@@ -38,6 +38,12 @@ export const navigation = [
     ],
   },
   {
+    title: { en: 'Crypto & Attribution', zh: '加密与归因' },
+    links: [
+      { title: { en: 'Overview', zh: '概览' }, href: '/docs/protocols/crypto-attribution/overview' },
+    ],
+  },
+  {
     title: { en: 'Flows', zh: '流程示例' },
     links: [
       { title: { en: 'Minimal Catalog', zh: '最小 Catalog' }, href: '/docs/examples/minimal-catalog' },

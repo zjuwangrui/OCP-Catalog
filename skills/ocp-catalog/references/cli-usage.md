@@ -55,6 +55,22 @@ bun scripts/ocp-skill-runner.ts catalog inspect http://localhost:4000/ocp/manife
 
 Reads the Catalog manifest so the agent can see endpoints, supported query packs, filter fields, object types, resolve capability, and auth policy.
 
+For a signed manifest or discovery document, verify before treating capabilities as trusted:
+
+```bash
+ocp catalog inspect https://catalog.example.com/ocp/manifest --verify
+```
+
+`--verify` checks the document signature and trust policy. Use `--jwks <catalog_id>=<file-or-url>` for explicit key material or let the CLI discover the signer keys when the document supplies the required route. Do not silently continue as if the document were trusted when verification returns `signature_invalid`, `key_not_found`, `alg_not_supported`, or another verification error. Trust degradation is only valid when the declared policy permits it.
+
+Verify a returned attribution token before using it for settlement or policy decisions:
+
+```bash
+ocp attribution verify ./resolve.json --jwks cat_example=./jwks.json
+```
+
+A relay verifies the complete upstream chain before appending its own hop. Keep the verifier's ordered first-error outcome intact; do not replace `chain_broken`, `replayed_jti`, `duplicate_order`, or signature/key errors with a generic success/failure flag.
+
 ```bash
 bun scripts/ocp-skill-runner.ts catalog query --query-url http://localhost:4000/ocp/query --query-pack ocp.query.keyword.v1 --query-mode keyword --query "running shoes"
 ```
@@ -99,7 +115,7 @@ bun scripts/ocp-skill-runner.ts validate query --manifest http://localhost:4000/
 bun scripts/ocp-skill-runner.ts events tail --activity-url https://ocp.deeplumen.io
 ```
 
-`validate manifest` checks a local or remote Catalog manifest against the schema. `validate query` checks an agent's proposed query against that manifest before sending it: unsupported `query_pack` values, unsupported `query_mode` values, unsupported filter fields, invalid pagination, and missing semantic query text return explicit correction details. `events tail` reads the redacted public Activity API projection, not raw audit payloads.
+`validate manifest` checks a local or remote Catalog manifest against the schema. `validate query` checks an agent's proposed query against that manifest before sending it: unsupported `query_pack` values, unsupported `query_mode` values, unsupported filter fields, invalid pagination, and missing semantic query text return explicit correction details. `events tail` reads the redacted public Activity API projection, not raw audit payloads. Its attribution data is limited to a closed outcome and, when configured, a keyed `correlation_id_hash`; it must not expose raw `jti`, `agent_id`, `order_id`, `report_id`, or the raw attribution block.
 
 Use `--api-key` when the target endpoint requires an API key. Use `--correlation-id` to link a command to server-side activity events. Do not put tracing or telemetry fields inside strict OCP request bodies.
 
