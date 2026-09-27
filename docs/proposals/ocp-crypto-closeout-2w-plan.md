@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | **进行中**——T1、T2、T3、T4、T5 已完成（2026-09-20） |
+| 状态 | **功能交付完成，仓库级 CI 闸门待验证**——T1–T7 已完成；T8 已建立 CI，四门结果待 GitHub Actions 实际运行 |
 | 版本 | v1.0 |
 | 日期 | 2026-09-18 |
 | 起止 | **2026-09-21（周一）– 2026-10-09（周五）**，10 个工作日（跨国庆，见下） |
@@ -140,8 +140,8 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 
 | 小任务 | 天 | 内容 | 完成判据 |
 |---|---|---|---|
-| **T6**（原 W7-T1） | 10-08 | activity 事件补归因关联——复用既有 `correlation_id`，**公开投影只出 `correlation_id_hash`** | 公开投影测试断言**无明文归因主体**（无 `jti`、无 `agent_id`、无 `order_id`） |
-| **T7**（原 W7-T2 + T3） | 10-09 | ① 站点文档四件套：`content/docs/` 新增页 + `locales/zh/` 中文页 + `navigation.ts` + artifacts registry<br>② `skills/ocp-catalog/references/` 更新 + `bun run skill:sync`<br>③ `updates/` 发布说明一篇（含 zh）<br>④ README 包清单增补 `ocp-crypto` | **四条命令全绿**：`bun run typecheck && bun test && bun run site:check && bun run skill:check` |
+| **T6**（原 W7-T1） ✅ | 10-08 | activity 事件补归因关联——复用既有 `correlation_id`，**公开投影只出 `correlation_id_hash`** | 公开投影测试断言**无明文归因主体**（无 `jti`、无 `agent_id`、无 `order_id`） |
+| **T7**（原 W7-T2 + T3） ✅（四门待 CI） | 10-09 | ① 站点文档四件套：`content/docs/` 新增页 + `locales/zh/` 中文页 + `navigation.ts` + artifacts registry<br>② `skills/ocp-catalog/references/` 更新 + `bun run skill:sync`<br>③ `updates/` 发布说明一篇（含 zh）<br>④ README 包清单增补 `ocp-crypto` | 功能交付完成；Node harness 文档完整性检查通过，`typecheck` / 全量测试 / `site:check` / `skill:check` 待 GitHub Actions 验证 |
 
 > ⚠️ **T7 是本计划最可能超时的一天。** `scripts/check-docs-integrity.ts` 同时校验 navigation ↔ 内容文件 ↔ zh locale ↔ artifacts registry 四者一致，**漏一处就红**，而它只有一天。
 > **降级预案**：优先保 `updates` 一篇 + README + skill 同步（这三项让外部使用者知道有这个东西），站点四件套顺延到节后第二周。**不要为了赶四件套把 skill 同步挤掉**——skill 是 CLI 使用者的入口，站点是读者的入口，前者影响能不能用。
@@ -210,8 +210,8 @@ activity 事件没有归因关联，站点没有加密与归因的文档页，sk
 | T3 ✅ | 09-25 | `trust_profile` 落地 + 降级语义 | 1 | 降级触发缓存作废，有测试 |
 | T4 ✅ | 09-28/29 | Python + Go 文档签名 + 3×3 矩阵 | 2 | **9 格全绿**，反例同码同信任上限 |
 | T5 ✅ | 09-30 | 上游链验证 + 去重仓接口与事务契约 | 1 | **伪造上游链拒绝联署**，两个接口各有事务契约 |
-| T6 | 10-08 | activity 归因关联 | 1 | 公开投影无明文归因主体 |
-| T7 | 10-09 | 站点四件套 + skill + updates + README | 1 | 四条命令全绿 |
+| T6 ✅ | 10-08 | activity 归因关联 | 1 | 公开投影无明文归因主体 |
+| T7 ✅（四门待 CI） | 10-09 | 站点四件套 + skill + updates + README | 1 | 功能交付完成；仓库级四门待 GitHub Actions 验证 |
 
 ## 附录 B · 新增与改动的文件
 
