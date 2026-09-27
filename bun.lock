@@ -60,6 +60,9 @@
       "dependencies": {
         "zod": "^4.1.12",
       },
+      "devDependencies": {
+        "@ocp-catalog/ocp-crypto": "workspace:*",
+      },
     },
     "packages/ocp-cli": {
       "name": "@ocp-catalog/ocp-cli",
