@@ -86,6 +86,10 @@
         "@ocp-catalog/registration-schema": "^0.2.1",
       },
     },
+    "packages/ocp-crypto": {
+      "name": "@ocp-catalog/ocp-crypto",
+      "version": "0.2.1",
+    },
     "packages/ocp-schema": {
       "name": "@ocp-catalog/ocp-schema",
       "version": "0.2.1",
