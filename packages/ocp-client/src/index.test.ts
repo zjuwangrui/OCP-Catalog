@@ -1,8 +1,28 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import type { OcpActivityEventInput } from '@ocp-catalog/ocp-activity-schema';
-import { OcpClient, OcpClientError } from './index';
+import { OcpClient, OcpClientError, OcpClientValidationError } from './index';
 
 const originalFetch = globalThis.fetch;
+
+const publicEvent = {
+  public_event_id: 'pub_1',
+  raw_event_id: 'evt_1',
+  occurred_at: '2026-09-30T10:00:00.000Z',
+  event_type: 'catalog.resolved',
+  source_kind: 'catalog_node',
+  client_kind: 'http',
+  protocol_family: 'catalog',
+  catalog_id: 'cat_test',
+  provider_id: null,
+  object_type: null,
+  status_class: 'success',
+  duration_bucket: 'lt_100ms',
+  result_count_bucket: 'one',
+  public_summary: 'catalog.resolved: success',
+  correlation_id_hash: null,
+  attribution_outcome: null,
+  created_at: '2026-09-30T10:00:01.000Z',
+};
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
@@ -125,6 +145,27 @@ describe('OcpClient activity instrumentation', () => {
       status_code: 503,
       error_code: 'http_error',
     });
+  });
+
+  it('validates the recent activity response envelope and every strict public event', async () => {
+    const client = new OcpClient();
+
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      events: [publicEvent],
+    }), { status: 200 })) as unknown as typeof fetch;
+    await expect(client.listActivityEvents('https://activity.example.test')).resolves.toEqual({
+      events: [publicEvent],
+    });
+
+    globalThis.fetch = (async () => new Response(JSON.stringify([publicEvent]), {
+      status: 200,
+    })) as unknown as typeof fetch;
+    await expect(client.listActivityEvents('https://activity.example.test')).rejects.toBeInstanceOf(OcpClientValidationError);
+
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      events: [{ ...publicEvent, agent_id: 'agent_private' }],
+    }), { status: 200 })) as unknown as typeof fetch;
+    await expect(client.listActivityEvents('https://activity.example.test')).rejects.toThrow();
   });
 
   it('does not instrument activity ingest or listing calls', async () => {

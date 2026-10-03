@@ -126,7 +126,7 @@ loop), or is already at the §4.4 cap of 8 hops.
 在上面：下游商户看到的是一个它认识的节点，签在一条谁都验不了的链上面。伪造者
 不需要自己的密钥，只需要一个来什么签什么的中继。
 
-所以 `relayAttribution` 在 `appendRelayHop` 之前先跑一遍完整的 §7.1 验证器。
+所以 `relayAttribution` 使用 `verifyAndAppendRelayHop`：先跑一遍完整的 §7.1 验证器，成功后才追加签名。
 不只是验签名循环——过期的链（第 9 行）或 `view` 凭证（第 6 行）不会因为多一跳
 就变得可结算，加上去只会得到一张下游照样拒绝、但上面写着本节点名字的凭证。
 第 7 行（`provider_id`）和第 10 行（`jti` 重放）**故意不查**：它们是结算时的

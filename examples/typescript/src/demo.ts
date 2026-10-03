@@ -33,11 +33,11 @@
 import {
   JtiRegistry,
   SettlementLedger,
-  appendRelayHop,
   generateEd25519KeyPair,
   publicJwkOf,
   settleOrder,
   staticKeyResolver,
+  verifyAndAppendRelayHop,
   verifyAttributionToken,
   type AttributionToken,
   type ConversionReport,
@@ -175,22 +175,26 @@ export async function main(argv: string[]): Promise<number> {
   // The node signed hop 1. This script appends hops 2 and 3 as two further
   // catalogs. §5.2 makes each hop sign every hop before it, so a chain that
   // verifies hop by hop is a chain nobody rewrote after the fact.
-  const twoHops = appendRelayHop({
+  const twoHops = (await verifyAndAppendRelayHop({
     privateJwk: relayB.privateJwk,
     kid: relayB.kid,
     catalogId: 'cat_demo_relay_b',
     token,
+    resolveKey,
+    at: new Date(),
     chainComplete: true,
     settles: true,
-  });
-  const threeHops = appendRelayHop({
+  })).token;
+  const threeHops = (await verifyAndAppendRelayHop({
     privateJwk: relayC.privateJwk,
     kid: relayC.kid,
     catalogId: 'cat_demo_relay_c',
     token: twoHops,
+    resolveKey,
+    at: new Date(),
     chainComplete: true,
     settles: false,
-  });
+  })).token;
   const chainVerdict = await verifyAttributionToken({ token: threeHops, resolveKey });
 
   assert(

@@ -26,6 +26,7 @@ import { AttributionError, CryptoError } from './errors';
 import { OCP_SIGNATURE_ALG, selectVerificationKey, type Ed25519PublicJwk } from './keys';
 import type { JwksCache } from './jwks';
 import type { ReplayStore } from './stores';
+import { parseRfc3339Instant } from './time';
 
 /**
  * Resolves the public key for one hop.
@@ -88,64 +89,50 @@ export function jwksCacheKeyResolver(cache: JwksCache): AttributionKeyResolver {
  * in full. What is here is enough for tests and a single-process reference
  * implementation, and nothing more.
  *
- * Retention is derived, not configured: an entry is kept until the token's own
- * `exp`. Past that, §7.1 row 9 rejects the token anyway, so remembering its
- * `jti` any longer protects nothing.
+ * Retention is permanent for a settled `jti`: settlement accepts reports for
+ * historical `occurred_at` values inside the token window, so pruning at `exp`
+ * would reopen replay after expiry. Production stores may compact only with a
+ * protocol-level retention policy that preserves every settlement identity.
  */
 export class JtiRegistry implements ReplayStore {
-  readonly #claims = new Map<string, { orderId: string; expiresAtMs: number }>();
-  readonly #now: () => number;
+  readonly #claims = new Map<string, string>();
   readonly #maxEntries: number;
 
-  constructor(options?: { now?: () => number; maxEntries?: number }) {
-    this.#now = options?.now ?? (() => Date.now());
+  constructor(options?: { maxEntries?: number }) {
     this.#maxEntries = options?.maxEntries ?? 100_000;
   }
 
-  /** Live entries, after dropping any whose token has expired. */
   get size(): number {
-    this.prune();
     return this.#claims.size;
   }
 
-  /** Drops entries past their token's `exp`. Called automatically on write. */
-  prune(): void {
-    const now = this.#now();
-    for (const [jti, claim] of this.#claims) {
-      if (claim.expiresAtMs <= now) this.#claims.delete(jti);
-    }
-  }
-
   /**
-   * Binds `jti` to `orderId` until `expiresAt`. Returns `false` if that `jti`
-   * is already bound to a different order — a replay.
+   * Permanently binds `jti` to `orderId`. Returns `false` if that `jti` is
+   * already bound to a different order — a replay.
    *
-   * Throws once the registry is full rather than evicting a live entry.
-   * Evicting would open a replay window silently, at whatever moment the
-   * process happened to be busiest; an operator who sees this error is being
-   * told to move the guard into a database, which is the actual fix.
+   * Throws once the registry is full rather than evicting an entry. Eviction
+   * would reopen replay for a delayed report carrying an in-window historical
+   * `occurred_at`; the actual remedy is durable storage.
    */
-  claim(jti: string, orderId: string, expiresAt: Date): boolean {
-    this.prune();
+  claim(jti: string, orderId: string, _expiresAt?: Date): boolean {
     const existing = this.#claims.get(jti);
-    if (existing) return existing.orderId === orderId;
+    if (existing !== undefined) return existing === orderId;
 
     if (this.#claims.size >= this.#maxEntries) {
       throw new Error(
-        `JtiRegistry is full (${this.#maxEntries} live claims). This guard is in-memory by ` +
-          `design and does not evict, because evicting a live claim reopens the replay it ` +
+        `JtiRegistry is full (${this.#maxEntries} claims). This guard is in-memory by ` +
+          `design and does not evict, because evicting a claim reopens the replay it ` +
           `exists to prevent. Move it to persistent storage.`,
       );
     }
 
-    this.#claims.set(jti, { orderId, expiresAtMs: expiresAt.getTime() });
+    this.#claims.set(jti, orderId);
     return true;
   }
 
   /** The order a `jti` is bound to, if any. For diagnostics. */
   orderOf(jti: string): string | undefined {
-    this.prune();
-    return this.#claims.get(jti)?.orderId;
+    return this.#claims.get(jti);
   }
 }
 
@@ -207,9 +194,8 @@ function fail(
 }
 
 /** Parses an RFC 3339 claim, or `undefined` if it is not a usable instant. */
-function instant(value: string): Date | undefined {
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+function instant(value: unknown): Date | undefined {
+  return parseRfc3339Instant(value);
 }
 
 /**
@@ -252,11 +238,21 @@ export async function verifyAttributionToken(
     replayGuard,
   } = params;
 
+  if (!(at instanceof Date) || !Number.isFinite(at.getTime())) {
+    throw new AttributionError('chain_broken', 'verification time is not a valid instant');
+  }
+
   const chain: ReadonlyArray<ChainNode> = token.chain ?? [];
 
   // Row 1 — structure, before any signature work (§5.4).
   const broken = checkChainStructure(chain);
   if (broken) return fail('chain_broken', broken);
+  if (token.iss !== chain[0]!.catalog_id) {
+    return fail(
+      'chain_broken',
+      `token issuer "${token.iss}" does not match origin catalog "${chain[0]!.catalog_id}"`,
+    );
+  }
 
   // Row 2 — recompute `complete`; never read it (§5.3).
   const complete = recomputeComplete(chain);
@@ -319,8 +315,21 @@ export async function verifyAttributionToken(
   // Rows 8, 9 — the validity window, measured at `at`.
   const iat = instant(token.iat);
   const exp = instant(token.exp);
-  if (!iat || !exp) {
+  if (!iat || !exp || iat.getTime() > exp.getTime()) {
     return fail('chain_broken', `iat/exp are not usable timestamps: iat="${token.iat}" exp="${token.exp}"`);
+  }
+  const signedTimes = chain.map((node) => instant(node.signed_at));
+  if (signedTimes.some((value) => value === undefined)) {
+    return fail('chain_broken', 'one or more hop signed_at values are not RFC 3339 instants');
+  }
+  for (let index = 0; index < signedTimes.length; index += 1) {
+    const signedAt = signedTimes[index]!;
+    if (signedAt.getTime() < iat.getTime() || signedAt.getTime() > exp.getTime()) {
+      return fail('chain_broken', `hop ${index + 1} signed_at is outside the token validity window`, index + 1);
+    }
+    if (index > 0 && signedAt.getTime() < signedTimes[index - 1]!.getTime()) {
+      return fail('chain_broken', `hop ${index + 1} signed_at precedes the previous hop`, index + 1);
+    }
   }
   if (at.getTime() < iat.getTime()) {
     return fail('token_not_yet_valid', `${at.toISOString()} is before iat ${token.iat}`);
@@ -335,7 +344,7 @@ export async function verifyAttributionToken(
     // Awaited because ReplayStore may be a database. The in-memory registry
     // returns plain values and awaiting them costs a microtask.
     const held = claim
-      ? ((await registry.claim(token.jti, orderId, exp)) ? undefined : await registry.orderOf(token.jti))
+      ? ((await registry.claim(token.jti, orderId)) ? undefined : await registry.orderOf(token.jti))
       : await registry.orderOf(token.jti);
     if (held !== undefined && held !== orderId) {
       return fail(

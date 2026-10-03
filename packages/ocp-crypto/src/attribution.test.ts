@@ -15,6 +15,8 @@ import {
 } from './attribution';
 import { errorCodeOf } from './errors';
 import { generateEd25519KeyPair, publicJwkOf } from './keys';
+import { verifyAndAppendRelayHop } from './relay';
+import { staticKeyResolver } from './verify';
 
 const issuer = generateEd25519KeyPair();
 
@@ -79,9 +81,30 @@ describe('issueOriginToken', () => {
     expect(freshToken({ agentIdentitySource: 'external' }).agent_identity_source).toBe('external');
   });
 
+  test('invalid now() is rejected before signing', () => {
+    expect(() => freshToken({ now: () => new Date(Number.NaN) })).toThrow(/invalid Date/);
+    const relayKey = generateEd25519KeyPair();
+    expect(() => appendRelayHop({
+      privateJwk: relayKey.privateJwk,
+      kid: relayKey.kid,
+      catalogId: 'cat_relay_invalid_clock',
+      token: freshToken(),
+      chainComplete: true,
+      now: () => new Date(Number.NaN),
+    })).toThrow(/invalid Date/);
+  });
+
+  test('ttlSeconds must be a non-negative safe integer', () => {
+    for (const ttlSeconds of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => freshToken({ ttlSeconds })).toThrow(/ttlSeconds/);
+    }
+  });
+
   test('settles 可为 false——不是每个跳都要分钱（§5.1）', () => {
     expect(freshToken({ settles: false }).chain[0]!.settles).toBe(false);
   });
+
+
 });
 
 describe('core claims 与签名材料（§4.3 / §5.2）', () => {
@@ -485,5 +508,37 @@ describe('appendRelayHop（多跳签发）', () => {
         chainComplete: true,
       }),
     ).toThrow(/malformed chain/);
+  });
+});
+
+describe('verifyAndAppendRelayHop', () => {
+  test('上游篡改时拒绝联署，且不产生下游跳', async () => {
+    const relay = generateEd25519KeyPair();
+    const token = freshToken();
+    const tampered: AttributionToken = {
+      ...token,
+      chain: [{ ...token.chain[0]!, settles: false }],
+    };
+
+    let caught: unknown;
+    try {
+      await verifyAndAppendRelayHop({
+        privateJwk: relay.privateJwk,
+        kid: relay.kid,
+        catalogId: 'cat_relay_safe',
+        token: tampered,
+        resolveKey: staticKeyResolver({
+          cat_origin: {
+            keys: [{ ...publicJwkOf(issuer.privateJwk), kid: issuer.kid, alg: 'EdDSA', use: 'sig' }],
+          },
+        }),
+        chainComplete: true,
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught instanceof Error).toBe(true);
+    expect(tampered.chain).toHaveLength(1);
   });
 });

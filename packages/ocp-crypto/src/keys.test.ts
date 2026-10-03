@@ -126,10 +126,24 @@ describe('Ed25519 · 签名与验签', () => {
     expect(cryptoCodeOf(() => assertEd25519PublicJwk({ kty: 'OKP', crv: 'Ed25519', x: 'AAAA' }))).toBe('invalid_key');
   });
 
-  test('base64url 拒绝填充与标准 base64 字母表', () => {
+  test('base64url 拒绝填充、标准字母表与非规范尾位', () => {
     expect(cryptoCodeOf(() => fromBase64Url('AA=='))).toBe('invalid_encoding');
     expect(cryptoCodeOf(() => fromBase64Url('a+b/c'))).toBe('invalid_encoding');
+    // Both strings decode permissively to the same byte in Node; only `AA` is canonical.
+    expect(fromBase64Url('AA')).toEqual(Uint8Array.from([0]));
+    expect(cryptoCodeOf(() => fromBase64Url('AB'))).toBe('invalid_encoding');
     expect(toBase64Url(Uint8Array.from([251, 255, 190]))).toBe('-_--');
+  });
+
+  test('x / d / signature 在解码前先做固定编码长度检查', () => {
+    const { publicJwk, privateJwk } = generateEd25519KeyPair();
+    expect(cryptoCodeOf(() => assertEd25519PublicJwk({ ...publicJwk, x: `${publicJwk.x}A` }))).toBe(
+      'invalid_key',
+    );
+    expect(cryptoCodeOf(() => signBytes({ ...privateJwk, d: `${privateJwk.d}A` }, message))).toBe(
+      'invalid_key',
+    );
+    expect(verifyBytes({ jwk: publicJwk, message, signature: 'A'.repeat(87) })).toBe(false);
   });
 });
 

@@ -78,8 +78,39 @@ export function parseJwksSpec(spec: string): JwksSpec {
  * token somebody emailed it to dispute a payout.
  */
 export function extractAttributionToken(payload: unknown): AttributionToken | undefined {
-  const isToken = (value: unknown): value is AttributionToken =>
-    typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'AttributionToken';
+  const isToken = (value: unknown): value is AttributionToken => {
+    if (typeof value !== 'object' || value === null) return false;
+    const candidate = value as Partial<AttributionToken>;
+    return (
+      candidate.kind === 'AttributionToken' &&
+      typeof candidate.ocp_version === 'string' &&
+      typeof candidate.jti === 'string' &&
+      typeof candidate.iss === 'string' &&
+      typeof candidate.iat === 'string' &&
+      typeof candidate.exp === 'string' &&
+      typeof candidate.agent_id === 'string' &&
+      typeof candidate.entry_id === 'string' &&
+      typeof candidate.object_id === 'string' &&
+      typeof candidate.provider_id === 'string' &&
+      typeof candidate.purpose === 'string' &&
+      typeof candidate.complete === 'boolean' &&
+      Array.isArray(candidate.chain) &&
+      candidate.chain.every(
+        (node) =>
+          typeof node === 'object' &&
+          node !== null &&
+          typeof node.catalog_id === 'string' &&
+          typeof node.hop === 'number' &&
+          typeof node.role === 'string' &&
+          typeof node.settles === 'boolean' &&
+          typeof node.chain_complete === 'boolean' &&
+          typeof node.alg === 'string' &&
+          typeof node.kid === 'string' &&
+          typeof node.signed_at === 'string' &&
+          typeof node.signature === 'string',
+      )
+    );
+  };
 
   if (isToken(payload)) return payload;
 

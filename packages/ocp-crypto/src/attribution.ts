@@ -18,6 +18,7 @@
  */
 import { canonicalizeValue } from './canonical';
 import { AttributionError } from './errors';
+import { isValidDate } from './time';
 import {
   OCP_SIGNATURE_ALG,
   signCanonical,
@@ -280,7 +281,11 @@ export function appendRelayHop(params: AppendRelayHopParams): AttributionToken {
     chain_complete: chainComplete,
     alg: OCP_SIGNATURE_ALG,
     kid,
-    signed_at: now().toISOString(),
+    signed_at: (() => {
+      const signedAt = now();
+      if (!isValidDate(signedAt)) throw new RangeError('now() returned an invalid Date');
+      return signedAt.toISOString();
+    })(),
   };
 
   const node = signChainNode({ privateJwk, core, chainPrefix: token.chain, node: unsigned });
@@ -335,6 +340,10 @@ export function issueOriginToken(params: IssueOriginTokenParams): AttributionTok
   } = params;
 
   const issuedAt = now();
+  if (!isValidDate(issuedAt)) throw new RangeError('now() returned an invalid Date');
+  if (!Number.isFinite(ttlSeconds) || ttlSeconds < 0 || !Number.isSafeInteger(ttlSeconds)) {
+    throw new RangeError('ttlSeconds must be a non-negative safe integer');
+  }
   const jti = params.jti ?? `atr_${crypto.randomUUID()}`;
 
   const core: CoreClaims = {

@@ -217,6 +217,17 @@ describe('签名 · 验签（§7 八步）', () => {
     badTime.signature.signed_at = 'last tuesday';
     expect(await codeOf(badTime, fx)).toBe('envelope_malformed');
 
+    for (const nonUtcOrNormalized of [
+      '2026-09-18T08:00:00+08:00',
+      '2026-09-18 00:00:00Z',
+      '2026-02-30T00:00:00Z',
+      '2026-09-18T00:00:00',
+    ]) {
+      const invalid = clone(fx.signed);
+      invalid.signature.signed_at = nonUtcOrNormalized;
+      expect(await codeOf(invalid, fx)).toBe('envelope_malformed');
+    }
+
     const padded = clone(fx.signed);
     padded.signature.signature = `${padded.signature.signature}==`;
     expect(await codeOf(padded, fx)).toBe('envelope_malformed');
@@ -325,6 +336,16 @@ describe('签名 · 验签（§7 八步）', () => {
     );
   });
 
+  test('invalid verification Date fails closed', async () => {
+    const fx = fixture();
+    const result = await verifyDocumentSignature({
+      document: fx.signed,
+      resolveKey: fx.resolveKey,
+      at: new Date(Number.NaN),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('envelope_malformed');
+  });
   test('步骤 8 — 过期只在其余全对时才报，且到期前仍然有效', async () => {
     const until = new Date('2026-09-25T00:00:00.000Z');
     const fx = fixture({ expiresAt: until });

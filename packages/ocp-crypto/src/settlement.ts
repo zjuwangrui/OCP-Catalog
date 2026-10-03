@@ -27,6 +27,7 @@
 import { ATTRIBUTION_ERROR_CODES, AttributionError } from './errors';
 import type { AttributionToken } from './attribution';
 import { nonTransactional, type LedgerStore, type ReplayStore, type SettlementTransaction } from './stores';
+import { parseRfc3339Instant } from './time';
 import {
   verifyAttributionToken,
   type AttributionKeyResolver,
@@ -94,7 +95,9 @@ export interface SettlementRecord {
   currency: string;
   occurredAt: string;
   status: ConversionStatus;
-  /** §5.3 recomputed. `false` means there may be unrecorded hops. */
+  /** Present on new records; optional so existing durable records can be rehydrated. */
+  providerId?: string;
+
   complete: boolean;
   /** §7.2 sort key of the winner. */
   lastSignedAt: string;
@@ -130,13 +133,15 @@ export function adjudicate<T extends { token: AttributionToken }>(
   rule: AdjudicationRule = 'last_touch',
 ): T | undefined {
   let best: T | undefined;
-  let bestKey = '';
+  let bestKey = 0;
 
   for (const candidate of candidates) {
     const chain = candidate.token.chain;
     const node = rule === 'last_touch' ? chain[chain.length - 1] : chain[0];
     if (!node) continue;
-    const key = node.signed_at;
+    const parsed = parseRfc3339Instant(node.signed_at);
+    if (!parsed) continue;
+    const key = parsed.getTime();
 
     if (best === undefined) {
       best = candidate;
@@ -191,6 +196,11 @@ export class SettlementLedger implements LedgerStore {
    */
   constructor(records: readonly SettlementRecord[] = []) {
     for (const record of records) {
+      const byOrder = this.#orders.get(record.orderId);
+      const byReport = this.#reports.get(record.reportId);
+      if ((byOrder && byOrder.reportId !== record.reportId) || (byReport && byReport.orderId !== record.orderId)) {
+        throw new Error('cannot rehydrate SettlementLedger with conflicting order_id or report_id records');
+      }
       this.#orders.set(record.orderId, record);
       this.#reports.set(record.reportId, record);
     }
@@ -222,6 +232,10 @@ export class SettlementLedger implements LedgerStore {
    */
   commit(record: SettlementRecord): void {
     const existing = this.#orders.get(record.orderId);
+    const existingReport = this.#reports.get(record.reportId);
+    if (existingReport && existingReport.orderId !== record.orderId) {
+      throw new Error(`report "${record.reportId}" is already bound to order "${existingReport.orderId}"`);
+    }
     if (existing && record.status === 'confirmed') {
       throw new Error(
         `order "${record.orderId}" is already settled (report "${existing.reportId}"). ` +
@@ -330,7 +344,15 @@ export async function settleOrder(params: SettleOrderParams): Promise<SettleOrde
     const result = await verifyAttributionToken({
       token,
       resolveKey,
-      at: new Date(report.occurred_at),
+      at: (() => {
+        const occurredAt = parseRfc3339Instant(report.occurred_at);
+        if (!occurredAt) {
+          throw new Error(
+            `report "${report.report_id}" has invalid occurred_at; expected an RFC 3339 instant`,
+          );
+        }
+        return occurredAt;
+      })(),
       expectedProviderId: report.provider_id,
       replayGuard: { registry: jtiRegistry, orderId, claim: false },
     });
@@ -375,6 +397,22 @@ export async function settleOrder(params: SettleOrderParams): Promise<SettleOrde
   // ---- Step 3: report idempotency, then §7.1 row 11 ------------------------
   const seen = await ledger.outcomeOf(winner.report.report_id);
   if (seen) {
+    const sameReport =
+      seen.orderId === winner.report.order_id &&
+      seen.jti === winner.token.jti &&
+      seen.amountMinor === winner.report.amount_minor &&
+      seen.currency === winner.report.currency &&
+      seen.occurredAt === winner.report.occurred_at &&
+      seen.status === winner.report.status &&
+      seen.providerId === winner.report.provider_id;
+    if (!sameReport) {
+      winning.error = new AttributionError(
+        'duplicate_order',
+        `report "${winner.report.report_id}" is already bound to different settlement data`,
+      );
+      winning.won = false;
+      return { ok: false, error: winning.error, candidates };
+    }
     return {
       ok: true,
       action: seen.status === 'confirmed' ? 'settled' : 'reversed',
@@ -417,6 +455,7 @@ export async function settleOrder(params: SettleOrderParams): Promise<SettleOrde
     currency: winner.report.currency,
     occurredAt: winner.report.occurred_at,
     status: winner.report.status,
+    providerId: winner.report.provider_id,
     complete: winner.verdict.complete,
     lastSignedAt: winner.verdict.lastSignedAt,
     rule,
@@ -429,7 +468,7 @@ export async function settleOrder(params: SettleOrderParams): Promise<SettleOrde
   // be lost; see stores.ts for why that direction is the unrecoverable one.
   const replayed = await transaction(async () => {
     if (!reversal) {
-      if (!(await jtiRegistry.claim(winner.token.jti, orderId, new Date(winner.token.exp)))) {
+      if (!(await jtiRegistry.claim(winner.token.jti, orderId))) {
         return String(await jtiRegistry.orderOf(winner.token.jti));
       }
     }

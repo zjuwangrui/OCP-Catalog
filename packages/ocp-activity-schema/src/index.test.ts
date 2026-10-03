@@ -164,13 +164,18 @@ describe('公开投影里没有明文归因主体（T6 判据）', () => {
     expect(projected!.attribution_outcome).toBe(null);
   });
 
-  test('自定义摘要夹带了 agent_id 就抛错，不发出去', async () => {
-    await expect(
-      toPublicActivityEvent(rawEvent(), {
-        publicEventId: 'pub_0006',
-        publicSummary: `settled for ${AGENT_ID}`,
-      }),
-    ).rejects.toThrow('leaks attribution.agent_id');
+  test('默认摘要不插入原始 catalog_id', async () => {
+    const projected = await toPublicActivityEvent(rawEvent(), {
+      publicEventId: 'pub_0006',
+    });
+    expect(projected!.catalog_id).toBe('cat_commerce_demo');
+    expect(projected!.public_summary).toBe('attribution.settlement_decided: success');
+    expect(projected!.public_summary).not.toContain('cat_commerce_demo');
+  });
+
+  test('递归检查实际字符串值，短归因主体也不能绕过', () => {
+    expect(() => assertNoAttributionSubjects({ nested: ['ok', { value: 'x a' }] }, { agent_id: 'a' }))
+      .toThrow('leaks attribution.agent_id');
   });
 
   test('异常信息本身不回显泄漏的值', () => {

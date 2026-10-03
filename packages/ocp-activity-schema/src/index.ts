@@ -333,12 +333,6 @@ export interface PublicProjectionOptions {
   correlationSecret?: string;
   /** Defaults to now. */
   createdAt?: string;
-  /**
-   * Overrides the generated summary. Still passed through
-   * {@link assertNoAttributionSubjects}, so a summary that interpolates the
-   * agent id throws instead of publishing.
-   */
-  publicSummary?: string;
 }
 
 /**
@@ -350,10 +344,6 @@ export interface PublicProjectionOptions {
  * template that grew an `${agent_id}`, a `catalog_id` an operator set equal to
  * the order id. The first kind gets caught in review; the second does not.
  *
- * Values shorter than 4 characters are skipped: they are indistinguishable
- * from incidental substrings of a timestamp or an enum, and a check that fires
- * on every event is a check that gets switched off.
- *
  * It throws rather than redacting. A pipeline whose job is to not publish
  * something, and which publishes a patched-up version of it instead, has
  * already told the operator the wrong thing. The message names the field, not
@@ -364,23 +354,41 @@ export function assertNoAttributionSubjects(
   attribution: OcpActivityAttribution | undefined,
 ): void {
   if (!attribution) return;
-  const haystack = JSON.stringify(projected);
-  for (const field of ['jti', 'agent_id', 'order_id', 'report_id'] as const) {
-    const value = attribution[field];
-    if (typeof value === 'string' && value.length >= 4 && haystack.includes(value)) {
-      throw new Error(`public projection leaks attribution.${field}`);
+
+  const subjects = (['jti', 'agent_id', 'order_id', 'report_id'] as const)
+    .flatMap((field) => {
+      const value = attribution[field];
+      return typeof value === 'string' && value.length > 0 ? [{ field, value }] : [];
+    });
+
+  const inspect = (value: unknown): void => {
+    if (typeof value === 'string') {
+      for (const subject of subjects) {
+        if (value.includes(subject.value)) {
+          throw new Error(`public projection leaks attribution.${subject.field}`);
+        }
+      }
+      return;
     }
-  }
+    if (Array.isArray(value)) {
+      for (const item of value) inspect(item);
+      return;
+    }
+    if (value && typeof value === 'object') {
+      for (const item of Object.values(value)) inspect(item);
+    }
+  };
+
+  inspect(projected);
 }
 
 function defaultSummary(event: OcpActivityEvent): string {
   const status = statusClassOf(event);
-  const where = event.catalog_id ? ` on ${event.catalog_id}` : '';
   const outcome =
     event.attribution?.outcome && event.attribution.outcome !== 'ok'
       ? ` (${event.attribution.outcome})`
       : '';
-  return `${event.event_type}${where}: ${status}${outcome}`;
+  return `${event.event_type}: ${status}${outcome}`;
 }
 
 /**
@@ -421,7 +429,7 @@ export async function toPublicActivityEvent(
     status_class: statusClassOf(event),
     duration_bucket: durationBucketOf(event.duration_ms),
     result_count_bucket: countBucketOf(event.result_count),
-    public_summary: options.publicSummary ?? defaultSummary(event),
+    public_summary: defaultSummary(event),
     correlation_id_hash: correlationHash,
     attribution_outcome: event.attribution?.outcome ?? null,
     created_at: options.createdAt ?? new Date().toISOString(),

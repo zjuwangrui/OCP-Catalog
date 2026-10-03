@@ -13,6 +13,7 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
+    "@ocp-catalog/ocp-activity-schema": "workspace:*",
     "@ocp-catalog/shared": "workspace:*",
     "elysia": "^1.3.22",
     "lucide-react": "^1.8.0",

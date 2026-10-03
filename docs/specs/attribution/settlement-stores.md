@@ -67,7 +67,7 @@ await settleOrder({
 
 ```ts
 interface ReplayStore {
-  claim(jti: string, orderId: string, expiresAt: Date): boolean | Promise<boolean>;
+  claim(jti: string, orderId: string, _expiresAt?: Date): boolean | Promise<boolean>;
   orderOf(jti: string): string | undefined | Promise<string | undefined>;
 }
 ```
@@ -75,11 +75,8 @@ interface ReplayStore {
 - `claim` 返回 `false` 只有一种含义：这个 `jti` 已经绑在**别的** `order_id` 上了。
   同一对 `(jti, orderId)` 再次认领**必须**返回 `true`——那是重试，不是重放。
 - 持久化实现：`jti` 上加唯一约束的 insert，写在结算事务里。
-- **保留期是推导出来的，不是配置项。** 记到 token 自己的 `exp` 为止。过了 `exp`，
-  row 9 本来就会拒掉这个 token，再记下去保护不了任何东西。
-- **过期行可以随时清，活跃行在任何压力下都不许驱逐。** 驱逐一条活跃认领＝悄悄重开一个重放
-  窗口，而且是在系统最忙的那一刻。内存实现在写满时选择抛错而不是驱逐，就是这个道理；
-  持久化实现应该选择让写入失败。
+- **保留期是永久的。** 结算允许报告在 token `exp` 之后提交，只要 `occurred_at` 仍在历史窗口内；如果到 `exp` 删除认领，同一 token 就能被绑定到另一个订单。持久化实现只有在另有协议级保留政策、且仍保留全部结算身份时才能压缩。
+- **条目在容量压力下也不许驱逐。** 驱逐一条认领＝悄悄重开一个重放窗口，而且是在系统最忙的那一刻。内存实现在写满时选择抛错而不是驱逐，就是这个道理；持久化实现应该选择让写入失败。
 
 ## 4. `LedgerStore`（row 11）
 

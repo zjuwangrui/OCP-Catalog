@@ -1,22 +1,10 @@
 import { useEffect, useState } from 'react';
+import {
+  ocpPublicActivityEventSchema,
+  type OcpPublicActivityEvent,
+} from '@ocp-catalog/ocp-activity-schema';
 
-export type PublicActivityEvent = {
-  public_event_id: string;
-  occurred_at: string;
-  event_type: string;
-  source_kind: string;
-  client_kind: string;
-  protocol_family: string;
-  catalog_id: string | null;
-  provider_id: string | null;
-  object_type: string | null;
-  status_class: string;
-  duration_bucket: string;
-  result_count_bucket: string;
-  public_summary: string;
-  correlation_id_hash: string | null;
-  attribution_outcome?: string | null;
-};
+export type PublicActivityEvent = OcpPublicActivityEvent;
 
 export type ActivityRollups = {
   window_hours: number;
@@ -72,7 +60,7 @@ function parseEvents(value: unknown): PublicActivityEvent[] {
     throw new Error('Activity recent payload does not expose an events array');
   }
 
-  return value.events as PublicActivityEvent[];
+  return value.events.map((event) => ocpPublicActivityEventSchema.parse(event));
 }
 
 export function useLiveActivity({ limit = 40, windowHours = 24, pollMs = 15_000 }: Options = {}) {

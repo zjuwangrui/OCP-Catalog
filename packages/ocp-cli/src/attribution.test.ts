@@ -233,12 +233,15 @@ describe('ocp attribution verify 的判定', () => {
     expect(cryptoOnly.ok).toBe(true);
   });
 
-  test('文档里根本没有凭证 → no_attribution，而不是崩', async () => {
-    const result = await verifyAttributionPayload({ payload: { kind: 'ResolvableReference' }, jwks: {} });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.code).toBe('no_attribution');
+  test('文档无凭证或只有不完整 token 外壳 → no_attribution，而不是崩', async () => {
+    for (const payload of [{ kind: 'ResolvableReference' }, { kind: 'AttributionToken' }]) {
+      const result = await verifyAttributionPayload({ payload, jwks: {} });
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.code).toBe('no_attribution');
+    }
   });
+
 });
 
 describe('凭证与这次 resolve 的绑定（§7.1 看不到的那部分）', () => {

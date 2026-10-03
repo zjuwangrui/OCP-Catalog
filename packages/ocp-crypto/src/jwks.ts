@@ -45,6 +45,14 @@ export interface JwksCacheStats {
   cachedCatalogs: number;
 }
 
+function nonNegativeFiniteOption(value: number | undefined, fallback: number, name: string): number {
+  const resolved = value ?? fallback;
+  if (!Number.isFinite(resolved) || resolved < 0) {
+    throw new TypeError(`${name} must be a finite, non-negative number`);
+  }
+  return resolved;
+}
+
 /**
  * Parses a JWK Set into a `kid` index.
  *
@@ -87,6 +95,9 @@ export class JwksCache {
    * whose JWKS endpoint is down would be probed on every single token.
    */
   private readonly lastAttemptAt = new Map<string, number>();
+  private readonly inFlight = new Map<string, Promise<CacheEntry>>();
+  private readonly generations = new Map<string, number>();
+  private globalGeneration = 0;
   private readonly load: JwksLoader;
   private readonly ttlMs: number;
   private readonly minRefetchIntervalMs: number;
@@ -95,8 +106,8 @@ export class JwksCache {
 
   constructor(options: JwksCacheOptions) {
     this.load = options.load;
-    this.ttlMs = options.ttlMs ?? 300_000;
-    this.minRefetchIntervalMs = options.minRefetchIntervalMs ?? 30_000;
+    this.ttlMs = nonNegativeFiniteOption(options.ttlMs, 300_000, 'ttlMs');
+    this.minRefetchIntervalMs = nonNegativeFiniteOption(options.minRefetchIntervalMs, 30_000, 'minRefetchIntervalMs');
     this.now = options.now ?? (() => Date.now());
   }
 
@@ -104,13 +115,29 @@ export class JwksCache {
     return this.now() - entry.fetchedAt < this.ttlMs;
   }
 
+  private generationOf(catalogId: string): string {
+    return `${this.globalGeneration}:${this.generations.get(catalogId) ?? 0}`;
+  }
+
   private async fetchInto(catalogId: string): Promise<CacheEntry> {
+    const generation = this.generationOf(catalogId);
     this.loads += 1;
     this.lastAttemptAt.set(catalogId, this.now());
     const doc = await this.load(catalogId);
     const entry: CacheEntry = { keys: indexJwkSet(doc, catalogId), fetchedAt: this.now() };
-    this.entries.set(catalogId, entry);
+    if (this.generationOf(catalogId) === generation) this.entries.set(catalogId, entry);
     return entry;
+  }
+
+  private loadOnce(catalogId: string): Promise<CacheEntry> {
+    const existing = this.inFlight.get(catalogId);
+    if (existing) return existing;
+    const generation = this.generationOf(catalogId);
+    const promise = this.fetchInto(catalogId).finally(() => {
+      if (this.inFlight.get(catalogId) === promise) this.inFlight.delete(catalogId);
+    });
+    this.inFlight.set(catalogId, promise);
+    return promise;
   }
 
   /**
@@ -134,7 +161,7 @@ export class JwksCache {
       // `key_not_found` rather than a transport error.
       let refreshed: CacheEntry;
       try {
-        refreshed = await this.fetchInto(catalogId);
+        refreshed = await this.loadOnce(catalogId);
       } catch {
         throw new CryptoError('key_not_found', `kid ${kid} is not in the JWKS for ${catalogId}`);
       }
@@ -147,7 +174,7 @@ export class JwksCache {
 
     let entry: CacheEntry;
     try {
-      entry = await this.fetchInto(catalogId);
+      entry = await this.loadOnce(catalogId);
     } catch (cause) {
       if (cause instanceof CryptoError && cause.code === 'jwks_malformed') throw cause;
       if (cached) {
@@ -177,9 +204,12 @@ export class JwksCache {
     if (catalogId === undefined) {
       this.entries.clear();
       this.lastAttemptAt.clear();
+      this.globalGeneration += 1;
+      this.generations.clear();
     } else {
       this.entries.delete(catalogId);
       this.lastAttemptAt.delete(catalogId);
+      this.generations.set(catalogId, (this.generations.get(catalogId) ?? 0) + 1);
     }
   }
 
@@ -193,6 +223,12 @@ export interface DiscoveryJwksLoaderOptions {
   wellKnownUrl: (catalogId: string) => string;
   /** Injected so this stays dependency-free and offline-testable. */
   fetchJson: (url: string) => Promise<unknown>;
+  /** Explicitly authorizes a JWKS URL on a different origin. */
+  allowCrossOrigin?: (params: {
+    catalogId: string;
+    discoveryUrl: URL;
+    jwksUrl: URL;
+  }) => boolean | Promise<boolean>;
 }
 
 /**
@@ -206,11 +242,44 @@ export interface DiscoveryJwksLoaderOptions {
  */
 export function createDiscoveryJwksLoader(options: DiscoveryJwksLoaderOptions): JwksLoader {
   return async (catalogId: string) => {
-    const discovery = await options.fetchJson(options.wellKnownUrl(catalogId));
-    const jwksUrl = (discovery as { jwks_url?: unknown } | null)?.jwks_url;
-    if (typeof jwksUrl !== 'string' || jwksUrl.length === 0) {
+    let discoveryUrl: URL;
+    try {
+      discoveryUrl = new URL(options.wellKnownUrl(catalogId));
+    } catch (cause) {
+      throw new CryptoError('jwks_unavailable', `discovery URL for ${catalogId} is invalid`, { cause });
+    }
+    if (discoveryUrl.protocol !== 'https:' || discoveryUrl.username || discoveryUrl.password || discoveryUrl.hash) {
+      throw new CryptoError('jwks_unavailable', `discovery URL for ${catalogId} is not a secure HTTPS URL`);
+    }
+
+    const discovery = await options.fetchJson(discoveryUrl.href);
+    if (typeof discovery !== 'object' || discovery === null || (discovery as { catalog_id?: unknown }).catalog_id !== catalogId) {
+      throw new CryptoError('jwks_unavailable', `discovery document catalog_id does not match ${catalogId}`);
+    }
+    const jwksUrlText = (discovery as { jwks_url?: unknown }).jwks_url;
+    if (typeof jwksUrlText !== 'string' || jwksUrlText.length === 0) {
       throw new CryptoError('jwks_unavailable', `discovery document for ${catalogId} declares no jwks_url`);
     }
-    return options.fetchJson(jwksUrl);
+
+    let jwksUrl: URL;
+    try {
+      jwksUrl = new URL(jwksUrlText);
+    } catch (cause) {
+      throw new CryptoError('jwks_unavailable', `discovery document for ${catalogId} declares an invalid jwks_url`, {
+        cause,
+      });
+    }
+    if (jwksUrl.protocol !== 'https:' || jwksUrl.username || jwksUrl.password || jwksUrl.hash) {
+      throw new CryptoError('jwks_unavailable', `jwks_url for ${catalogId} is not a secure HTTPS URL`);
+    }
+    if (jwksUrl.origin !== discoveryUrl.origin) {
+      const allowed = options.allowCrossOrigin
+        ? await options.allowCrossOrigin({ catalogId, discoveryUrl, jwksUrl })
+        : false;
+      if (!allowed) {
+        throw new CryptoError('jwks_unavailable', `cross-origin jwks_url for ${catalogId} is not allowed`);
+      }
+    }
+    return options.fetchJson(jwksUrl.href);
   };
 }

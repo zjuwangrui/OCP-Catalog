@@ -88,19 +88,21 @@ recomputeComplete(token.chain) === token.complete;   // §5.3：必须重算，�
 ### 多跳：接在别人的 token 后面
 
 ```ts
-import { appendRelayHop } from '@ocp-catalog/ocp-crypto';
+import { staticKeyResolver, verifyAndAppendRelayHop } from '@ocp-catalog/ocp-crypto';
 
-const relayed = appendRelayHop({
+const { token: relayed, upstream } = await verifyAndAppendRelayHop({
   privateJwk, kid, catalogId: 'cat_relay_a',
   token: upstreamToken,        // core claims 原样带走，一个字都不能改
+  resolveKey: staticKeyResolver({ cat_origin: originJwks }),
   chainComplete: true,         // 故意没有默认值
   settles: true,               // 默认 false
 });
+void upstream;                 // 已验证的上游 verdict，可用于日志和指标
 ```
 
 `chainComplete` 必须显式给，因为两个默认值都是错的：给 `true` 会让一次随手的接入声明出它背不起的「无未记录上游」，给 `false` 会让每条链都不完整、这个字段就作废了。而 `settles` 默认 `false`——少报一份自己应得的分成还能补，多报一份就是用自己的私钥签下一条假结算声明。
 
-**追加之前必须先验上游链**（`verifyAttributionToken`）。§5.2 让第 N 跳的签名永久覆盖第 1..N−1 跳，所以在一条没验过的链上联署，等于把本节点的名字签在别人的伪造上。
+`verifyAndAppendRelayHop` 把完整上游验证与追加签名绑定成一个入口；上游伪造、过期、purpose 不可结算或密钥不可用时，它都会在本节点签名前失败。底层 `appendRelayHop` 仍作为协议原语导出，但不会验上游签名，生产 relay 应使用安全入口。§5.2 让第 N 跳的签名永久覆盖第 1..N−1 跳，所以在一条没验过的链上联署，等于把本节点的名字签在别人的伪造上。
 
 ### 完整验证器
 
@@ -138,7 +140,7 @@ else console.log(verdict.settlingCatalogIds, verdict.complete, verdict.lastSigne
 
 换的接口已经在包里：`JtiRegistry` 实现的是 [`ReplayStore`](./src/stores.ts)，`settleOrder` 只认这个接口，所以换存储不用动裁决逻辑。方法允许返回 `Promise`——持久化 store 的每次认领都是一次网络调用，只能返回 `boolean` 的接口除了另一个 `Map` 谁都实现不了。事务契约见 [`docs/specs/attribution/settlement-stores.md`](../../docs/specs/attribution/settlement-stores.md)。
 
-保留期是**推导出来的，不是配置项**：条目留到凭证自己的 `exp`。过了那一刻第 9 行本来就会拒掉它，再记住这个 `jti` 也保护不了任何东西。
+认领必须**永久保留**：第 8、9 行按回报的历史 `occurred_at` 判断，所以报告可以在 token `exp` 之后合法到达；若在 `exp` 清理认领，同一 token 就能重新绑定到另一个订单。只有另有协议级保留政策并仍保留全部结算身份时，持久化实现才能压缩这些行。
 
 ### 结算：从「这张凭证是真的」到「这笔订单付给谁」
 

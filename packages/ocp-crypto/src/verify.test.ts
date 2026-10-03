@@ -5,7 +5,7 @@ import {
   type AttributionToken,
   type ChainNode,
 } from './attribution';
-import { CryptoError } from './errors';
+import { AttributionError, CryptoError } from './errors';
 import { generateEd25519KeyPair, publicJwkOf, type Ed25519PublicJwk } from './keys';
 import {
   JtiRegistry,
@@ -190,7 +190,7 @@ describe('jti 防重放（T4 判据三）', () => {
   });
 
   test('同一 jti 用在另一个 order_id 上 → replayed_jti', async () => {
-    const registry = new JtiRegistry({ now: () => DURING.getTime() });
+    const registry = new JtiRegistry();
     const token = threeHopToken();
 
     expect((await verifyAttributionToken(guardParams(token, registry, 'order_1'))).ok).toBe(true);
@@ -202,7 +202,7 @@ describe('jti 防重放（T4 判据三）', () => {
   });
 
   test('同一 jti 同一 order_id 重复出现 → 放行（重试与状态更新，§7.1 注）', async () => {
-    const registry = new JtiRegistry({ now: () => DURING.getTime() });
+    const registry = new JtiRegistry();
     const token = threeHopToken();
     for (let i = 0; i < 3; i += 1) {
       expect((await verifyAttributionToken(guardParams(token, registry, 'order_1'))).ok).toBe(true);
@@ -211,7 +211,7 @@ describe('jti 防重放（T4 判据三）', () => {
   });
 
   test('不同 jti 互不影响', async () => {
-    const registry = new JtiRegistry({ now: () => DURING.getTime() });
+    const registry = new JtiRegistry();
     const a = threeHopToken();
     const b = { ...threeHopToken(), jti: 'atr_other' };
     // Changing `jti` is a core-claim change, so `b` has to be signed afresh
@@ -234,7 +234,7 @@ describe('jti 防重放（T4 判据三）', () => {
   test('前面任一检查失败 → 不占用 jti', async () => {
     // Burning a jti on a token that was rejected for an unrelated reason would
     // make the first bad report a denial of service against the real one.
-    const registry = new JtiRegistry({ now: () => DURING.getTime() });
+    const registry = new JtiRegistry();
     const tampered = patchHop(threeHopToken(), 2, { settles: false });
     expect((await verifyAttributionToken(guardParams(tampered, registry, 'order_1'))).ok).toBe(false);
     expect(registry.size).toBe(0);
@@ -242,19 +242,16 @@ describe('jti 防重放（T4 判据三）', () => {
     expect((await verifyAttributionToken(guardParams(threeHopToken(), registry, 'order_1'))).ok).toBe(true);
   });
 
-  test('过期后条目被回收——留着也没用，第 9 条已经拦下了', () => {
-    let clock = IAT.getTime();
-    const registry = new JtiRegistry({ now: () => clock });
-    registry.claim('atr_a', 'order_1', new Date(clock + 60_000));
+  test('认领永久保留——即使调用方传入过期时间也不能重开 jti', () => {
+    const registry = new JtiRegistry();
+    registry.claim('atr_a', 'order_1', new Date(IAT.getTime() + 60_000));
     expect(registry.size).toBe(1);
-    clock += 61_000;
-    expect(registry.size).toBe(0);
-    // And the slot is reusable, which is the point of reclaiming it.
-    expect(registry.claim('atr_a', 'order_2', new Date(clock + 60_000))).toBe(true);
+    expect(registry.claim('atr_a', 'order_1')).toBe(true);
+    expect(registry.claim('atr_a', 'order_2')).toBe(false);
   });
 
   test('容量满 → 抛异常，绝不淘汰在世条目', () => {
-    const registry = new JtiRegistry({ now: () => IAT.getTime(), maxEntries: 2 });
+    const registry = new JtiRegistry({ maxEntries: 2 });
     const exp = new Date(IAT.getTime() + 3_600_000);
     registry.claim('atr_1', 'order_1', exp);
     registry.claim('atr_2', 'order_2', exp);
@@ -383,6 +380,56 @@ describe('§7.1 其余各行与固定顺序（§8）', () => {
     const token = threeHopToken();
     const result = await verifyAttributionToken({ token, resolveKey: allKeys, at: DURING });
     expect(result.ok).toBe(true);
+  });
+
+  test('token.iss 必须绑定第一跳 catalog_id', async () => {
+    const result = await verifyAttributionToken({
+      token: { ...threeHopToken(), iss: 'cat_attacker' },
+      resolveKey: allKeys,
+      at: DURING,
+    });
+    expect(result.error?.code).toBe('chain_broken');
+  });
+
+  test('无效验证时刻 fail closed', async () => {
+    let caught: unknown;
+    try {
+      await verifyAttributionToken({ token: threeHopToken(), resolveKey: allKeys, at: new Date(Number.NaN) });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught instanceof Error).toBe(true);
+    expect((caught as AttributionError).code).toBe('chain_broken');
+  });
+
+  test('跳时间必须位于 token 窗口内且不能倒退', async () => {
+    const afterExpiry = originToken({
+      ttlSeconds: 60,
+      now: () => IAT,
+    });
+    const lateHop = appendRelayHop({
+      privateJwk: RELAY_A.privateJwk,
+      kid: RELAY_A.kid,
+      catalogId: 'cat_relay_a',
+      token: afterExpiry,
+      chainComplete: true,
+      now: () => new Date('2026-09-21T10:02:00.000Z'),
+    });
+    const late = await verifyAttributionToken({ token: lateHop, resolveKey: allKeys, at: IAT });
+    expect(late.error?.code).toBe('chain_broken');
+    expect(late.error?.hop).toBe(2);
+
+    const backwards = appendRelayHop({
+      privateJwk: RELAY_A.privateJwk,
+      kid: RELAY_A.kid,
+      catalogId: 'cat_relay_a',
+      token: originToken(),
+      chainComplete: true,
+      now: () => new Date('2026-09-21T09:59:00.000Z'),
+    });
+    const reversed = await verifyAttributionToken({ token: backwards, resolveKey: allKeys, at: IAT });
+    expect(reversed.error?.code).toBe('chain_broken');
+    expect(reversed.error?.hop).toBe(2);
   });
 
   test('同时违反多条 → 只报最靠前的那一条（§8 固定顺序）', async () => {

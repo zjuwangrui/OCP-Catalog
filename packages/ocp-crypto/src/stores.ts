@@ -71,24 +71,23 @@ import type { SettlementRecord } from './settlement';
  * ordinary traffic (a retry, a `pending` → `confirmed` update). The same `jti`
  * against a **different** `order_id` is one attribution token spent twice.
  *
- * Retention is derived, not configured. An entry is needed until the token's
- * own `exp`; past that, row 9 rejects the token anyway, so remembering the
- * `jti` longer protects nothing. A durable implementation may delete expired
- * rows on any schedule it likes — but it must not evict live ones under
- * pressure, because an eviction reopens the replay silently and at whatever
- * moment the system happened to be busiest.
+ * A settled claim has no token-expiry retention shortcut. Settlement validates a
+ * historical `occurred_at`, so a report can legitimately arrive after `exp`; if
+ * the claim were pruned then, the same token could be bound to another order.
+ * Durable implementations therefore retain the `jti` binding permanently (or
+ * under a separately specified protocol retention policy that preserves it).
  */
 export interface ReplayStore {
   /**
-   * Binds `jti` to `orderId` until `expiresAt`, and reports whether the bind
-   * holds. `false` means that `jti` is already bound to a *different* order —
-   * a replay. Re-claiming the same pair MUST return `true`: that is a retry.
+   * Permanently binds `jti` to `orderId`, and reports whether the bind holds.
+   * `false` means that `jti` is already bound to a *different* order — a replay.
+   * Re-claiming the same pair MUST return `true`: that is a retry.
    *
    * A durable implementation writes this as an insert with a unique constraint
    * on `jti`, in the settlement transaction. It is the write that must not
    * outlive a rolled-back payout, nor be outlived by a committed one.
    */
-  claim(jti: string, orderId: string, expiresAt: Date): boolean | Promise<boolean>;
+  claim(jti: string, orderId: string, _expiresAt?: Date): boolean | Promise<boolean>;
 
   /** The order a `jti` is bound to, if any. Read-only; used for diagnostics and for row 10 without claiming. */
   orderOf(jti: string): string | undefined | Promise<string | undefined>;

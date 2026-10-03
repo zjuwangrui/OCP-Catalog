@@ -79,6 +79,31 @@ describe('JwksCache · 命中与缓存', () => {
     expect(loads).toBe(2);
   });
 
+  test('同一 catalog 的并发加载只回源一次', async () => {
+    const { kid, publicJwk } = generateEd25519KeyPair();
+    let loads = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const cache = new JwksCache({
+      load: async () => {
+        loads += 1;
+        await gate;
+        return jwkSetOf(publicJwk);
+      },
+    });
+    const a = cache.getVerificationKey(CATALOG, kid);
+    const b = cache.getVerificationKey(CATALOG, kid);
+    expect(loads).toBe(1);
+    release();
+    expect((await Promise.all([a, b])).length).toBe(2);
+  });
+
+  test('缓存选项必须是有限非负数', () => {
+    expect(() => new JwksCache({ load: async () => ({}), ttlMs: Number.NaN })).toThrow();
+    expect(() => new JwksCache({ load: async () => ({}), minRefetchIntervalMs: -1 })).toThrow();
+  });
   test('invalidate 后立即回源', async () => {
     const { kid, publicJwk } = generateEd25519KeyPair();
     let loads = 0;
@@ -310,6 +335,46 @@ describe('createDiscoveryJwksLoader · catalog_id → jwks_url → JWKS', () => 
     ]);
   });
 
+  test('discovery catalog_id 不匹配 → jwks_unavailable', async () => {
+    const loader = createDiscoveryJwksLoader({
+      wellKnownUrl: () => 'https://origin.example/.well-known/ocp-catalog',
+      fetchJson: async () => ({ catalog_id: 'cat_other', jwks_url: 'https://origin.example/jwks.json' }),
+    });
+    expect(await codeOf(() => loader(CATALOG))).toBe('jwks_unavailable');
+  });
+
+  test('默认拒绝不安全或跨源 jwks_url，显式策略可放行跨源 HTTPS', async () => {
+    const discovery = { catalog_id: CATALOG, jwks_url: 'https://keys.example/jwks.json' };
+    const denied = createDiscoveryJwksLoader({
+      wellKnownUrl: () => 'https://origin.example/.well-known/ocp-catalog',
+      fetchJson: async () => discovery,
+    });
+    expect(await codeOf(() => denied(CATALOG))).toBe('jwks_unavailable');
+
+    let authorized = false;
+    const allowed = createDiscoveryJwksLoader({
+      wellKnownUrl: () => 'https://origin.example/.well-known/ocp-catalog',
+      allowCrossOrigin: () => {
+        authorized = true;
+        return true;
+      },
+      fetchJson: async (url) => (url.endsWith('ocp-catalog') ? discovery : jwkSetOf()),
+    });
+    await allowed(CATALOG);
+    expect(authorized).toBe(true);
+
+    for (const jwksUrl of [
+      'http://origin.example/jwks.json',
+      'https://user:pass@origin.example/jwks.json',
+      'https://origin.example/jwks.json#fragment',
+    ]) {
+      const loader = createDiscoveryJwksLoader({
+        wellKnownUrl: () => 'https://origin.example/.well-known/ocp-catalog',
+        fetchJson: async () => ({ catalog_id: CATALOG, jwks_url: jwksUrl }),
+      });
+      expect(await codeOf(() => loader(CATALOG))).toBe('jwks_unavailable');
+    }
+  });
   test('discovery 里没有 jwks_url → jwks_unavailable', async () => {
     const loader = createDiscoveryJwksLoader({
       wellKnownUrl: () => 'https://example.com/.well-known/ocp-catalog',

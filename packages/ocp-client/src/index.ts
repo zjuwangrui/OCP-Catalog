@@ -27,11 +27,13 @@ import {
 } from '@ocp-catalog/registration-schema';
 import {
   ocpActivityEventInputSchema,
+  ocpPublicActivityEventSchema,
   type OcpActivityClientKind,
   type OcpActivityEventInput,
   type OcpActivityProtocolFamily,
   type OcpActivityPublicVisibility,
   type OcpActivitySourceKind,
+  type OcpPublicActivityEvent,
 } from '@ocp-catalog/ocp-activity-schema';
 
 export type OcpClientActivityMetadata = Record<string, string | number | boolean | null>;
@@ -345,10 +347,18 @@ export class OcpClient {
     });
   }
 
-  async listActivityEvents(activityUrl: string, limit = 50) {
-    return this.fetchJson(`${trimTrailingSlash(activityUrl)}/api/activity/recent?limit=${encodeURIComponent(String(limit))}`, {
+  async listActivityEvents(activityUrl: string, limit = 50): Promise<{ events: OcpPublicActivityEvent[] }> {
+    const payload = await this.fetchJson(`${trimTrailingSlash(activityUrl)}/api/activity/recent?limit=${encodeURIComponent(String(limit))}`, {
       method: 'GET',
     });
+    if (!isRecord(payload) || !Array.isArray(payload.events)) {
+      throw new OcpClientValidationError('Activity recent payload does not expose an events array', {
+        code: 'invalid_activity_events_response',
+      });
+    }
+    return {
+      events: payload.events.map((event) => ocpPublicActivityEventSchema.parse(event)),
+    };
   }
 
   private async fetchJson(url: string, init: RequestInit, context?: FetchJsonContext): Promise<unknown> {
@@ -471,6 +481,10 @@ export class OcpClient {
       void Promise.allSettled(pending);
     }
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function manifestQueryPackDescriptors(manifest: CatalogManifest) {

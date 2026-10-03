@@ -51,6 +51,8 @@ const PKCS8_PREFIX = Uint8Array.from([
 
 const RAW_KEY_BYTES = 32;
 const SIGNATURE_BYTES = 64;
+const RAW_KEY_BASE64URL_LENGTH = 43;
+const SIGNATURE_BASE64URL_LENGTH = 86;
 
 /** base64url, unpadded — the encoding attribution spec §5.2 mandates. */
 export function toBase64Url(bytes: Uint8Array): string {
@@ -70,7 +72,11 @@ export function fromBase64Url(value: string, what = 'value'): Uint8Array {
   if (!/^[A-Za-z0-9_-]+$/.test(value)) {
     throw new CryptoError('invalid_encoding', `${what} is not unpadded base64url`);
   }
-  return new Uint8Array(Buffer.from(value, 'base64url'));
+  const decoded = new Uint8Array(Buffer.from(value, 'base64url'));
+  if (toBase64Url(decoded) !== value) {
+    throw new CryptoError('invalid_encoding', `${what} is not canonical base64url`);
+  }
+  return decoded;
 }
 
 /**
@@ -115,6 +121,12 @@ export function assertEd25519PublicJwk(candidate: unknown, what = 'JWK'): Ed2551
   }
   if (typeof jwk.x !== 'string') {
     throw new CryptoError('invalid_key', `${what} has no "x" member`);
+  }
+  if (jwk.x.length !== RAW_KEY_BASE64URL_LENGTH) {
+    throw new CryptoError(
+      'invalid_key',
+      `${what}.x has encoded length ${jwk.x.length}, expected ${RAW_KEY_BASE64URL_LENGTH}`,
+    );
   }
   const raw = fromBase64Url(jwk.x, `${what}.x`);
   if (raw.length !== RAW_KEY_BYTES) {
@@ -167,7 +179,14 @@ function publicKeyObject(jwk: Ed25519PublicJwk): KeyObject {
 }
 
 function privateKeyObject(jwk: Ed25519PrivateJwk): KeyObject {
+  assertEd25519PublicJwk(jwk, 'private JWK');
   if (typeof jwk.d !== 'string') throw new CryptoError('invalid_key', 'private JWK has no "d" member');
+  if (jwk.d.length !== RAW_KEY_BASE64URL_LENGTH) {
+    throw new CryptoError(
+      'invalid_key',
+      `JWK.d has encoded length ${jwk.d.length}, expected ${RAW_KEY_BASE64URL_LENGTH}`,
+    );
+  }
   const seed = fromBase64Url(jwk.d, 'JWK.d');
   if (seed.length !== RAW_KEY_BYTES) {
     throw new CryptoError('invalid_key', `JWK.d decodes to ${seed.length} bytes, expected ${RAW_KEY_BYTES}`);
@@ -237,6 +256,7 @@ export function verifyBytes({ jwk, message, signature, alg = OCP_SIGNATURE_ALG }
   const publicJwk = assertEd25519PublicJwk(jwk);
 
   let raw: Uint8Array;
+  if (typeof signature !== 'string' || signature.length !== SIGNATURE_BASE64URL_LENGTH) return false;
   try {
     raw = fromBase64Url(signature, 'signature');
   } catch {

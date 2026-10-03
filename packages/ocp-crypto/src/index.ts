@@ -76,6 +76,9 @@ export type {
   UnsignedChainNode,
 } from './attribution';
 
+export { verifyAndAppendRelayHop } from './relay';
+export type { VerifyAndAppendRelayHopParams } from './relay';
+
 export { JtiRegistry, jwksCacheKeyResolver, staticKeyResolver, verifyAttributionToken } from './verify';
 export type {
   AttributionKeyResolver,

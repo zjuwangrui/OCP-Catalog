@@ -125,6 +125,38 @@ describe('同一 order_id 回报两次只记一次（T5 判据一）', () => {
     expect(settler.ledger.settledOrders).toBe(1);
   });
 
+  test('同一 report_id 携带不同结算身份 → fail closed，不返回幂等结果', async () => {
+    const settler = freshSettler();
+    const token = originToken();
+    const first = report({ attribution_token: token });
+    const settled = await settleOrder({ reports: [first], resolveKey: allKeys, ...settler });
+    expect(settled.ok).toBe(true);
+
+    const conflict = await settleOrder({
+      reports: [
+        report({
+          attribution_token: token,
+          amount_minor: 1,
+          provider_id: 'prov_other',
+        }),
+      ],
+      resolveKey: allKeys,
+      ...settler,
+    });
+    expect(conflict.ok).toBe(false);
+    if (conflict.ok) return;
+    expect(conflict.error.code).toBe('provider_mismatch');
+
+    const amountConflict = await settleOrder({
+      reports: [report({ attribution_token: token, amount_minor: 1 })],
+      resolveKey: allKeys,
+      ...settler,
+    });
+    expect(amountConflict.ok).toBe(false);
+    if (amountConflict.ok) return;
+    expect(amountConflict.error.code).toBe('duplicate_order');
+    expect(settler.ledger.recordOf('ord_1')!.amountMinor).toBe(12900);
+  });
   test('换一个 report_id 再报同一订单 → duplicate_order（§7.1 第 11 条）', async () => {
     const settler = freshSettler();
     await settleOrder({
@@ -480,6 +512,16 @@ describe('回报本身不合格时（§7.1 rows 1–10）', () => {
     expect(outOfWindow.error.code).toBe('token_expired');
   });
 
+  test('非法 occurred_at fail closed，而不是让 Date 静默归一化', async () => {
+    const err = await rejection(
+      settleOrder({
+        reports: [report({ occurred_at: '2026-02-30T10:00:00.000Z', attribution_token: originToken() })],
+        resolveKey: allKeys,
+        ...freshSettler(),
+      }),
+    );
+    expect(err.message).toContain('invalid occurred_at');
+  });
   test('候选全军覆没时，报走得最远的那条错——与输入顺序无关', async () => {
     const base = originToken({ jti: 'atr_forged' });
     const forged: AttributionToken = {
@@ -747,7 +789,7 @@ describe('ReplayStore / LedgerStore 接口与事务契约（T5 判据二）', ()
         },
       } satisfies LedgerStore,
       jtiRegistry: {
-        claim: (jti: string, orderId: string, expiresAt: Date) => {
+        claim: (jti: string, orderId: string, expiresAt?: Date) => {
           staged.push(() => void registry.claim(jti, orderId, expiresAt));
           return registry.orderOf(jti) === undefined || registry.orderOf(jti) === orderId;
         },

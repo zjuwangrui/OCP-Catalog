@@ -17,10 +17,9 @@
  * parses every response through those schemas to prove conformance.
  */
 import {
-  appendRelayHop,
   issueOriginToken,
   signDocument,
-  verifyAttributionToken,
+  verifyAndAppendRelayHop,
   type AttributionToken,
 } from '@ocp-catalog/ocp-crypto';
 import { PRODUCTS, type Product } from './products';
@@ -319,48 +318,31 @@ async function relayAttribution(product: Product, upstream: unknown): Promise<At
   const token = asUpstreamToken(upstream);
   if (!token || token.object_id !== product.id) return undefined;
 
-  let verdict;
   try {
-    verdict = await verifyAttributionToken({ token, resolveKey: upstreamKeyResolver });
-  } catch {
-    // §7.3 — a key server that is unreachable, stale or malformed is not a
-    // statement about the token, so this is not evidence of forgery. It is
-    // also not evidence of authenticity, and signing is the irreversible
-    // direction, so the answer is still no.
-    return undefined;
-  }
-
-  if (!verdict.ok) {
-    // The chain is forged, broken, expired, or comes from a catalog this node
-    // holds no keys for. Naming the reason in a log is the useful thing here;
-    // a production node should count these per upstream `catalog_id`, because
-    // a partner that suddenly produces key_not_found has rotated a key and a
-    // partner that produces signature_invalid has a different problem.
-    console.warn(
-      `refusing to relay for "${token.iss}": ${verdict.error.code} — ${verdict.error.message}` +
-        (trustedUpstreams().length === 0
-          ? ' (no upstream JWKS configured; set OCP_UPSTREAM_JWKS or call trustUpstream)'
-          : ''),
-    );
-    return undefined;
-  }
-
-  try {
-    return appendRelayHop({
+    const relayed = await verifyAndAppendRelayHop({
       privateJwk: SIGNING_KEY.privateJwk,
       kid: SIGNING_KEY.kid,
       catalogId: CATALOG_ID,
       token,
+      resolveKey: upstreamKeyResolver,
       // This node received the token directly in the resolve request, with no
       // catalog hop in between that went unrecorded.
       chainComplete: true,
       // It is in the money flow: it put the object in front of the buyer too.
       settles: true,
     });
-  } catch {
-    // Looping or already-full chains (§5.4 / §4.4) — both structural, and both
-    // survive verification because a full chain is a valid chain. Refusing to
-    // sign is the point; the chain is not made better by this node's key.
+    return relayed.token;
+  } catch (err) {
+    // Verification failures, unavailable key material, loops and full chains all
+    // fail closed. A production node should count these by upstream catalog and
+    // error code; resolve itself remains backward compatible (§10.2).
+    const detail = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `refusing to relay for "${token.iss}": ${detail}` +
+        (trustedUpstreams().length === 0
+          ? ' (no upstream JWKS configured; set OCP_UPSTREAM_JWKS or call trustUpstream)'
+          : ''),
+    );
     return undefined;
   }
 }

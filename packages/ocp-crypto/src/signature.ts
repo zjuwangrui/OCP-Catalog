@@ -35,6 +35,7 @@ import {
   type Ed25519PrivateJwk,
   type Ed25519PublicJwk,
 } from './keys';
+import { isValidDate, parseStrictRfc3339UtcInstant } from './time';
 
 /** The member a signed document carries its envelope in (spec §2). */
 export const SIGNATURE_MEMBER = 'signature' as const;
@@ -148,12 +149,20 @@ export function signDocument<T extends object>(params: SignDocumentParams<T>): S
     );
   }
 
+  const signedAt = now();
+  if (!isValidDate(signedAt)) {
+    throw new RangeError('now() returned an invalid Date');
+  }
+  if (expiresAt !== undefined && !isValidDate(expiresAt)) {
+    throw new RangeError('expiresAt is an invalid Date');
+  }
+
   const payload = documentPayload(document);
   const unsigned: UnsignedSignatureEnvelope = {
     alg: OCP_SIGNATURE_ALG,
     kid,
     issuer,
-    signed_at: now().toISOString(),
+    signed_at: signedAt.toISOString(),
     ...(expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
     payload_hash: canonicalValueHash(payload),
   };
@@ -228,9 +237,7 @@ const PAYLOAD_HASH_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 function timestamp(value: unknown): Date | undefined {
-  if (typeof value !== 'string') return undefined;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  return parseStrictRfc3339UtcInstant(value);
 }
 
 /**
@@ -287,6 +294,10 @@ export async function verifyDocumentSignature(
   params: VerifyDocumentSignatureParams,
 ): Promise<VerifyDocumentSignatureResult> {
   const { document, resolveKey, at = new Date(), expectedIssuer } = params;
+
+  if (!isValidDate(at)) {
+    return fail('envelope_malformed', 'verification time is an invalid Date');
+  }
 
   // Step 1 — is there an envelope at all.
   if (typeof document !== 'object' || document === null) {
