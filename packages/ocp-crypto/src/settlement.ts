@@ -242,6 +242,12 @@ export class SettlementLedger implements LedgerStore {
           `Check §7.1 row 11 before committing, or this is a double payout.`,
       );
     }
+    if (existing && (existing.status === 'refunded' || existing.status === 'cancelled')) {
+      throw new Error(
+        `order "${record.orderId}" already has a reversal (report "${existing.reportId}"); ` +
+          'a second reversal must not overwrite the original settlement record',
+      );
+    }
     this.#orders.set(record.orderId, record);
     this.#reports.set(record.reportId, record);
   }

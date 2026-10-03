@@ -639,6 +639,30 @@ describe('输入契约', () => {
     expect(() => ledger.commit({ ...record, reportId: 'rep_2' })).toThrow('already settled');
     expect(ledger.records()).toHaveLength(1);
   });
+
+  test('ledger.commit rejects a second reversal instead of overwriting the record', () => {
+    const ledger = new SettlementLedger();
+    const record = {
+      orderId: 'ord_1',
+      reportId: 'rep_refund',
+      jti: 'atr_1',
+      agentId: 'agent_alpha',
+      settlingCatalogIds: ['cat_origin'],
+      amountMinor: 100,
+      currency: 'CNY',
+      occurredAt: SOLD_AT,
+      status: 'refunded' as const,
+      complete: true,
+      lastSignedAt: SOLD_AT,
+      rule: 'last_touch' as const,
+    };
+    ledger.commit(record);
+    expect(() => ledger.commit({ ...record, reportId: 'rep_cancel', status: 'cancelled' })).toThrow(
+      'already has a reversal',
+    );
+    expect(ledger.outcomeOf('rep_refund')?.status).toBe('refunded');
+    expect(ledger.outcomeOf('rep_cancel')).toBeUndefined();
+  });
 });
 
 describe('replayGuard 的只读模式（claim: false）', () => {
