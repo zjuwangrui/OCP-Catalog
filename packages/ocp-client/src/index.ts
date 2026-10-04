@@ -72,9 +72,16 @@ type FetchJsonContext = {
 };
 
 export class OcpClientError extends Error {
+  readonly details: {
+    url: string;
+    status?: number;
+    payload?: unknown;
+    cause?: string;
+  };
+
   constructor(
     message: string,
-    public readonly details: {
+    details: {
       url: string;
       status?: number;
       payload?: unknown;
@@ -83,16 +90,17 @@ export class OcpClientError extends Error {
   ) {
     super(message);
     this.name = 'OcpClientError';
+    this.details = details;
   }
 }
 
 export class OcpClientValidationError extends Error {
-  constructor(
-    message: string,
-    public readonly details: Record<string, unknown> & { code: string },
-  ) {
+  readonly details: Record<string, unknown> & { code: string };
+
+  constructor(message: string, details: Record<string, unknown> & { code: string }) {
     super(message);
     this.name = 'OcpClientValidationError';
+    this.details = details;
   }
 }
 
@@ -229,7 +237,11 @@ export function validateCatalogQueryRequest(
 }
 
 export class OcpClient {
-  constructor(private readonly options: OcpClientOptions = {}) {}
+  private readonly options: OcpClientOptions;
+
+  constructor(options: OcpClientOptions = {}) {
+    this.options = options;
+  }
 
   async discoverRegistration(discoveryUrl: string): Promise<RegistrationDiscovery> {
     const payload = await this.fetchJson(discoveryUrl, { method: 'GET' }, {
