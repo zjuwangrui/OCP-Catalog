@@ -3,6 +3,9 @@ import { existsSync } from 'node:fs';
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 export const OCP_SKILL_NAME = 'ocp-catalog';
 export const OCP_SKILL_MARKER = '.ocp-skill-install.json';
@@ -181,9 +184,9 @@ export async function doctorOcpSkill(target: SkillTarget = 'auto'): Promise<Skil
 
 export async function findOcpSkillSource(): Promise<string> {
   const candidates = [
-    path.join(import.meta.dir, 'skills', OCP_SKILL_NAME),
-    path.resolve(import.meta.dir, '..', '..', '..'),
-    path.resolve(import.meta.dir, '..', '..', '..', 'skills', OCP_SKILL_NAME),
+    path.join(moduleDir, 'skills', OCP_SKILL_NAME),
+    path.resolve(moduleDir, '..', '..', '..'),
+    path.resolve(moduleDir, '..', '..', '..', 'skills', OCP_SKILL_NAME),
   ];
 
   for (const candidate of candidates) {
@@ -368,8 +371,8 @@ async function hashDirectory(sourceDir: string): Promise<string> {
 
 async function readPackageVersion(): Promise<string> {
   const candidates = [
-    path.resolve(import.meta.dir, '..', 'package.json'),
-    path.resolve(import.meta.dir, '..', '..', '..', 'packages', 'ocp-cli', 'package.json'),
+    path.resolve(moduleDir, '..', 'package.json'),
+    path.resolve(moduleDir, '..', '..', '..', 'packages', 'ocp-cli', 'package.json'),
   ];
 
   for (const candidate of candidates) {

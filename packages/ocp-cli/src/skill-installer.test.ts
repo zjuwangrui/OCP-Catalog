@@ -3,7 +3,8 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { doctorOcpSkill, installOcpSkill, OCP_SKILL_MARKER, resolveSkillTargetDirs, uninstallOcpSkill } from './skill-installer';
+import { fileURLToPath } from 'node:url';
+import { doctorOcpSkill, findOcpSkillSource, installOcpSkill, OCP_SKILL_MARKER, resolveSkillTargetDirs, uninstallOcpSkill } from './skill-installer';
 
 const tempDirs: string[] = [];
 
@@ -12,6 +13,14 @@ afterEach(async () => {
 });
 
 describe('OCP skill installer', () => {
+  test('resolves the bundled skill source from the module location', async () => {
+    const sourceDir = await findOcpSkillSource();
+    const expectedSourceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'skills', 'ocp-catalog');
+
+    expect(sourceDir).toBe(expectedSourceDir);
+    expect(existsSync(path.join(sourceDir, 'SKILL.md'))).toBe(true);
+  });
+
   test('installs the bundled skill into an explicit skills directory', async () => {
     const target = await tempDir();
 
