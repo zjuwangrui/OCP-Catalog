@@ -196,4 +196,100 @@ describe('OcpClient activity instrumentation', () => {
     ]);
     expect(events).toEqual([]);
   });
+
+  it('delivers client activity events to the configured HTTP sink', async () => {
+    const activityRequests: Array<{ url: string; init: RequestInit }> = [];
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/ocp/audit/events')) {
+        activityRequests.push({ url, init: init ?? {} });
+        return new Response('{}', { status: 202 });
+      }
+
+      return new Response(JSON.stringify({
+        ocp_version: '1.0',
+        kind: 'CatalogSearchResult',
+        id: 'search_1',
+        registration_id: 'reg_1',
+        result_count: 0,
+        items: [],
+        explain: [],
+      }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = new OcpClient({
+      activity: {
+        apiUrl: 'https://activity.example.test/ocp/audit/events',
+        apiKey: 'activity-secret',
+      },
+    });
+
+    await client.searchCatalogs('https://registration.example.test', {
+      ocp_version: '1.0',
+      kind: 'CatalogSearchRequest',
+      query: 'shoes',
+      filters: {},
+      limit: 10,
+      explain: false,
+    });
+    await waitForActivityRequests(activityRequests, 2);
+
+    expect(activityRequests).toHaveLength(2);
+    expect(activityRequests.map((request) => request.url)).toEqual([
+      'https://activity.example.test/ocp/audit/events',
+      'https://activity.example.test/ocp/audit/events',
+    ]);
+    expect(activityRequests.every((request) => request.init.method === 'POST')).toBe(true);
+    expect(activityRequests.every((request) => new Headers(request.init.headers).get('content-type') === 'application/json')).toBe(true);
+    expect(activityRequests.every((request) => new Headers(request.init.headers).get('x-api-key') === 'activity-secret')).toBe(true);
+    expect(JSON.parse(String(activityRequests[0]!.init.body)).event_type).toBe('client.call_attempted');
+    expect(JSON.parse(String(activityRequests[1]!.init.body)).event_type).toBe('client.call_completed');
+  });
+
+  it('keeps the protocol call successful when HTTP activity delivery fails', async () => {
+    const activityRequests: string[] = [];
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      if (url.endsWith('/ocp/audit/events')) {
+        activityRequests.push(url);
+        throw new Error('activity sink unavailable');
+      }
+
+      return new Response(JSON.stringify({
+        ocp_version: '1.0',
+        kind: 'CatalogSearchResult',
+        id: 'search_1',
+        registration_id: 'reg_1',
+        result_count: 0,
+        items: [],
+        explain: [],
+      }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = new OcpClient({
+      activity: { apiUrl: 'https://activity.example.test' },
+    });
+
+    const result = await client.searchCatalogs('https://registration.example.test', {
+      ocp_version: '1.0',
+      kind: 'CatalogSearchRequest',
+      query: 'shoes',
+      filters: {},
+      limit: 10,
+      explain: false,
+    });
+    expect(result.kind).toBe('CatalogSearchResult');
+    await waitForActivityRequests(activityRequests, 2);
+
+    expect(activityRequests).toEqual([
+      'https://activity.example.test/ocp/audit/events',
+      'https://activity.example.test/ocp/audit/events',
+    ]);
+  });
 });
+
+async function waitForActivityRequests(requests: unknown[], count: number) {
+  for (let attempt = 0; attempt < 20 && requests.length < count; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
