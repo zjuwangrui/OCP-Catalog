@@ -15,14 +15,16 @@ export type ApiErrorCode =
   | 'internal_error';
 
 export class AppError extends Error {
-  constructor(
-    public readonly code: ApiErrorCode,
-    message: string,
-    public readonly status = 500,
-    public readonly details?: unknown,
-  ) {
+  readonly code: ApiErrorCode;
+  readonly status: number;
+  readonly details?: unknown;
+
+  constructor(code: ApiErrorCode, message: string, status = 500, details?: unknown) {
     super(message);
     this.name = 'AppError';
+    this.code = code;
+    this.status = status;
+    this.details = details;
   }
 }
 
