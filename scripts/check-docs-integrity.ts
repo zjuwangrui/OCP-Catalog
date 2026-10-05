@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { artifactRegistry } from '../apps/ocp-site-web/src/content/artifacts';
+import { artifactRegistry } from '../apps/ocp-site-web/src/content/artifacts/index';
 import { coreArtifacts } from '../apps/ocp-site-web/src/content/artifacts/core';
 import { cryptoArtifacts } from '../apps/ocp-site-web/src/content/artifacts/crypto';
 import { examplesArtifacts } from '../apps/ocp-site-web/src/content/artifacts/examples';

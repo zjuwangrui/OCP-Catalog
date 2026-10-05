@@ -14,9 +14,10 @@
 import { copyFile, mkdir, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const repoRoot = path.resolve(import.meta.dir, '..');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const skillName = 'ocp-catalog';
 const sourceDir = path.join(repoRoot, 'skills', skillName);
 
