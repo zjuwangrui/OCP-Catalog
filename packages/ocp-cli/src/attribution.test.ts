@@ -13,6 +13,7 @@ import {
   parseJwksSpec,
   requiredCatalogIds,
   verifyAttributionPayload,
+  exitCodeForAttributionVerification,
 } from './attribution';
 
 const ORIGIN = generateEd25519KeyPair();
@@ -72,6 +73,38 @@ function resolveResponse(token: AttributionToken, over: Record<string, unknown> 
     ...over,
   };
 }
+
+describe('归因验签退出码', () => {
+  test('通过返回 0，失败返回 2', () => {
+    expect(exitCodeForAttributionVerification({
+      ok: true,
+      jti: 'atr_cli',
+      settles: [],
+    })).toBe(0);
+    expect(exitCodeForAttributionVerification({
+      ok: false,
+      error: { code: 'signature_invalid', message: 'bad signature' },
+    })).toBe(2);
+  });
+
+  test('resolve 的绑定失败也返回 2', () => {
+    expect(exitCodeForAttributionVerification({
+      ok: false,
+      binding_error: { code: 'object_mismatch', message: 'wrong object' },
+    })).toBe(2);
+    expect(exitCodeForAttributionVerification({
+      attribution_verification: {
+        ok: false,
+        error: { code: 'token_expired', message: 'expired' },
+      },
+    })).toBe(2);
+  });
+
+  test('不把普通 ok:false 结果误判为归因验签', () => {
+    expect(exitCodeForAttributionVerification({ ok: false })).toBeUndefined();
+    expect(exitCodeForAttributionVerification({ ok: false, error: { code: 'x' } })).toBeUndefined();
+  });
+});
 
 describe('从各种文档里取出凭证', () => {
   test('裸 token、resolve 响应、ConversionReport 三种入口都认', () => {

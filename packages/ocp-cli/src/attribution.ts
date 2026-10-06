@@ -50,6 +50,25 @@ export type AttributionVerification =
     };
 
 /**
+ * Returns the process status for a completed attribution verification verdict.
+ * `undefined` means the value is not an attribution verification result.
+ */
+export function exitCodeForAttributionVerification(
+  verification: unknown,
+): 0 | 2 | undefined {
+  if (!verification || typeof verification !== 'object') return undefined;
+  const record = verification as Record<string, unknown>;
+  if (record.ok === true && typeof record.jti === 'string' && Array.isArray(record.settles)) return 0;
+  if ('attribution_verification' in record) {
+    return exitCodeForAttributionVerification(record.attribution_verification);
+  }
+  if (record.ok === false && record.binding_error && typeof record.binding_error === 'object') return 2;
+  if (record.ok !== false || !record.error || typeof record.error !== 'object') return undefined;
+  const error = record.error as Record<string, unknown>;
+  return typeof error.code === 'string' && typeof error.message === 'string' ? 2 : undefined;
+}
+
+/**
  * Splits `cat_origin=./origin-jwks.json` into its two halves.
  *
  * Splits on the **first** `=` because a JWKS source is a URL and URLs contain

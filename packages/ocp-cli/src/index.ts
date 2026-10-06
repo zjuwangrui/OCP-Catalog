@@ -23,6 +23,7 @@ import {
   parseJwksSpec,
   requiredCatalogIds,
   verifyAttributionPayload,
+  exitCodeForAttributionVerification,
 } from './attribution';
 import { CLI_HELP, FULL_CLI_HELP, findCommandHelp, findDomainHelp } from './help';
 import {
@@ -42,10 +43,11 @@ try {
   if (result !== undefined) printJson(result);
   // A verdict of "this did not verify" is an answer, not a crash, so it is
   // printed like one — but a shell that cannot tell it from a pass will happily
-  // pipe a tampered manifest onwards. `2`, never `1`: `1` already means the
+  // pipe a tampered document onwards. `2`, never `1`: `1` already means the
   // command itself failed, and conflating the two makes a network error look
   // like a forgery and a forgery look like a network error.
-  if (isFailedVerification(result)) process.exitCode = exitCodeForVerification(result);
+  const verificationExitCode = exitCodeForCliVerification(result);
+  if (verificationExitCode !== undefined) process.exitCode = verificationExitCode;
 } catch (error) {
   const payload = error instanceof OcpClientValidationError
     ? { error: { code: 'validation_error', message: error.message, details: error.details } }
@@ -576,24 +578,24 @@ function printJson(value: unknown) {
 }
 
 /**
- * Whether this result is a document-signature verdict that failed.
- *
- * Deliberately narrow — it matches the shape `verifyCatalogDocument` returns,
- * not every result with an `ok` member. `ocp attribution verify` also prints
- * `ok: false` and still exits `0`; that is the same gap, but closing it changes
- * the behaviour of a shipped command and belongs in its own commit rather than
- * riding along behind a signature feature.
- *
- * `process.exitCode` rather than `process.exit()`: the verdict has just been
- * written to stdout, and stdout to a pipe is asynchronous. Exiting here would
- * truncate the JSON precisely when it is being read by another program.
+ * Returns the shell status for the CLI's three verification result shapes.
+ * Ordinary command results are deliberately left unclassified.
  */
-function isFailedVerification(result: unknown): result is DocumentVerification & { ok: false } {
+function exitCodeForCliVerification(result: unknown): 0 | 2 | undefined {
+  if (isDocumentVerification(result)) return exitCodeForVerification(result);
+
+  const direct = exitCodeForAttributionVerification(result);
+  if (direct !== undefined) return direct;
+
+  return undefined;
+}
+
+function isDocumentVerification(result: unknown): result is DocumentVerification {
   const record = result as Record<string, unknown> | null;
   return (
     !!record &&
     typeof record === 'object' &&
-    record.ok === false &&
+    typeof record.ok === 'boolean' &&
     typeof record.trust_tier === 'string' &&
     typeof record.invalidates_cache === 'boolean'
   );
