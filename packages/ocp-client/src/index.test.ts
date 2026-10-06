@@ -197,6 +197,116 @@ describe('OcpClient activity instrumentation', () => {
     expect(events).toEqual([]);
   });
 
+  it('reuses one client correlation ID across the request and both activity events', async () => {
+    const requests: Array<{ url: string; init: RequestInit }> = [];
+    const events: OcpActivityEventInput[] = [];
+    let calls = 0;
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      requests.push({ url: String(input), init: init ?? {} });
+      return new Response(JSON.stringify({
+        ocp_version: '1.0',
+        kind: 'CatalogSearchResult',
+        id: `search_${requests.length}`,
+        registration_id: 'reg_1',
+        result_count: 0,
+        items: [],
+        explain: [],
+      }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = new OcpClient({
+      correlationId: () => `corr_${++calls}`,
+      activity: { sink: (event) => events.push(event) },
+    });
+
+    for (let index = 0; index < 2; index += 1) {
+      await client.searchCatalogs('https://registration.example.test', {
+        ocp_version: '1.0',
+        kind: 'CatalogSearchRequest',
+        query: 'shoes',
+        filters: {},
+        limit: 10,
+        explain: false,
+      });
+    }
+
+    expect(calls).toBe(2);
+    expect(new Headers(requests[0]!.init.headers).get('x-ocp-trace-id')).toBe('corr_1');
+    expect(new Headers(requests[1]!.init.headers).get('x-ocp-trace-id')).toBe('corr_2');
+    expect(events.map((event) => event.correlation_id)).toEqual([
+      'corr_1', 'corr_1', 'corr_2', 'corr_2',
+    ]);
+  });
+
+  it('resolves an explicit activity correlation override once per protocol call', async () => {
+    const events: OcpActivityEventInput[] = [];
+    let clientCalls = 0;
+    let activityCalls = 0;
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      ocp_version: '1.0',
+      kind: 'CatalogSearchResult',
+      id: 'search_1',
+      registration_id: 'reg_1',
+      result_count: 0,
+      items: [],
+      explain: [],
+    }), { status: 200 })) as unknown as typeof fetch;
+
+    const client = new OcpClient({
+      correlationId: () => `client_${++clientCalls}`,
+      activity: {
+        correlationId: () => `activity_${++activityCalls}`,
+        sink: (event) => events.push(event),
+      },
+    });
+
+    await client.searchCatalogs('https://registration.example.test', {
+      ocp_version: '1.0',
+      kind: 'CatalogSearchRequest',
+      query: 'shoes',
+      filters: {},
+      limit: 10,
+      explain: false,
+    });
+
+    expect(clientCalls).toBe(1);
+    expect(activityCalls).toBe(1);
+    expect(events.map((event) => event.correlation_id)).toEqual(['activity_1', 'activity_1']);
+  });
+
+  it('keeps the protocol trace while suppressing inherited activity correlation', async () => {
+    const events: OcpActivityEventInput[] = [];
+    let calls = 0;
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      ocp_version: '1.0',
+      kind: 'CatalogSearchResult',
+      id: 'search_1',
+      registration_id: 'reg_1',
+      result_count: 0,
+      items: [],
+      explain: [],
+    }), { status: 200 })) as unknown as typeof fetch;
+
+    const client = new OcpClient({
+      correlationId: () => `corr_${++calls}`,
+      activity: {
+        includeClientCorrelationId: false,
+        sink: (event) => events.push(event),
+      },
+    });
+
+    await client.searchCatalogs('https://registration.example.test', {
+      ocp_version: '1.0',
+      kind: 'CatalogSearchRequest',
+      query: 'shoes',
+      filters: {},
+      limit: 10,
+      explain: false,
+    });
+
+    expect(calls).toBe(1);
+    expect(events.every((event) => event.correlation_id === undefined)).toBe(true);
+  });
   it('delivers client activity events to the configured HTTP sink', async () => {
     const activityRequests: Array<{ url: string; init: RequestInit }> = [];
     globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
