@@ -29,6 +29,8 @@
 
 ## 1. 现在到底还差什么
 
+> **历史快照说明（2026-09-18）**：本节的“现在到底还差什么”记录的是收口计划建立时的基线，不是当前状态。后续进展见下方 T24 增量；原始缺口、任务表和完成判据保留用于回溯。
+
 前置已完成（截至 2026-09-18）：
 
 | 已交付 | 内容 |
@@ -49,6 +51,25 @@
 
 **C. 对外面：协议做完了，外面看不见**
 activity 事件没有归因关联，站点没有加密与归因的文档页，skill 没同步，`updates` 没有发布说明，README 的包清单没有 `ocp-crypto`。
+
+---
+
+## T24 · 收口计划后续增量（截至 2026-10-08）
+
+T18–T23 是 2026-09-18 基线之后的仓库内增量，原 §1 的 A/B/C 缺口应按上面的历史快照理解：
+
+| 任务 | 后续交付 | 工作汇报 |
+|---|---|---|
+| T18 | CLI skill installer 改为 Node-compatible，并补 source-discovery 回归覆盖 | [T18](./reports/t18-cli-runtime.md) |
+| T19 | 补齐 client HTTP activity 投递测试，覆盖 endpoint、headers、事件体及 best-effort 行为 | [T19](./reports/t19-client-activity.md) |
+| T20 | attribution verification 以 `0` 表示成功、`2` 表示负面 verdict，命令或运行时错误仍走 `1` | [T20](./reports/t20-attribution-exit-code.md) |
+| T21 | 同一协议请求复用 request-level correlation ID 到 trace header 与 attempted/completed activity 事件 | [T21](./reports/t21-client-correlation.md) |
+| T22 | live Activity 完整列表以中英文独立展示公开 `attribution_outcome`，不暴露归因主体 | [T22](./reports/t22-activity-attribution-outcome.md) |
+| T23 | live Activity 轮询拒绝旧响应覆盖新快照，并为公开 payload 解析补纯函数测试 | [T23](./reports/t23-live-activity-polling.md) |
+
+因此，原 A 中的 manifest 签名闭环已由 T1–T3 完成，原 B 的 relay 上游链验证与存储接口/事务契约已由 T5 完成，原 C 的 activity 关联、站点文档、skill、updates 和 README 对外收口已由 T6–T7 完成。T18–T23 的 Node-compatible 检查、客户端 activity/correlation 行为和 live Activity 展示与轮询保护也已完成。
+
+当前仍未在本机完成的是 Bun-backed repository gates：`bun install --frozen-lockfile`、`bun run typecheck`、`bun test`、`bun run site:check` 与 `bun run skill:check`，需在具备 Bun 的环境或 GitHub Actions 中执行。生产密钥托管、ReplayStore/LedgerStore 的真实持久化事务实现继续由 `ocp-catalog-instances` 负责。
 
 ---
 
