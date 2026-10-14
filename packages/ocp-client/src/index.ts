@@ -25,6 +25,13 @@ import {
   type CatalogSearchResult,
   type RegistrationDiscovery,
 } from '@ocp-catalog/registration-schema';
+export {
+  catalogCapabilityProfileSchema,
+  deriveCatalogCapabilityProfile,
+  type CatalogCapabilityProfile,
+  type ProfileSourceRef,
+} from './capabilities';
+
 import {
   ocpActivityEventInputSchema,
   ocpPublicActivityEventSchema,

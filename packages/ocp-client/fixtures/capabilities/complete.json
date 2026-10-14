@@ -1,0 +1,27 @@
+{
+  "ocp_version": "1.0",
+  "kind": "CatalogManifest",
+  "id": "manifest-complete",
+  "catalog_id": "catalog-complete",
+  "catalog_name": "Complete Catalog",
+  "endpoints": {
+    "query": { "url": "https://catalog.example.test/query", "method": "POST" },
+    "resolve": { "url": "https://catalog.example.test/resolve", "method": "POST" }
+  },
+  "query_capabilities": [{
+    "capability_id": "commerce.search",
+    "query_packs": [{ "pack_id": "product-search", "query_modes": ["hybrid", "keyword"], "metadata": {} }],
+    "searchable_field_refs": ["ocp.commerce.product.core.v1#/title"],
+    "filterable_field_refs": ["ocp.commerce.product.core.v1#/brand"],
+    "sortable_field_refs": ["ocp.commerce.product.core.v1#/price"],
+    "input_fields": [],
+    "supports_explain": true,
+    "supports_resolve": true,
+    "metadata": {}
+  }],
+  "provider_contract": { "field_rules": [], "sync_capabilities": [{
+    "capability_id": "snapshot", "direction": "provider_to_catalog", "transport": "https", "sync_model": { "snapshot": true, "delta": false, "stream": false }, "mutation_semantics": { "upsert": true, "delete": true }, "metadata": {}
+  }]},
+  "object_contracts": [{ "required_fields": ["ocp.commerce.product.core.v1#/title"], "optional_fields": [], "additional_fields_policy": "allow" }],
+  "federation": { "trust_strategy": { "trust_tier": "verified", "manifest_signed": true } }
+}

@@ -1,0 +1,20 @@
+{
+  "ocp_version": "1.0",
+  "kind": "CatalogManifest",
+  "id": "manifest-partial",
+  "catalog_id": "catalog-partial",
+  "catalog_name": "Partial Catalog",
+  "endpoints": {
+    "query": { "url": "https://catalog.example.test/query", "method": "POST" },
+    "resolve": { "url": "https://catalog.example.test/resolve", "method": "POST" }
+  },
+  "query_capabilities": [{
+    "capability_id": "commerce.search",
+    "query_packs": [{ "pack_id": "product-search", "query_modes": ["filter", "filter"], "metadata": {} }],
+    "input_fields": [{ "name": "filters.brand", "type": "string" }],
+    "supports_explain": false,
+    "supports_resolve": false,
+    "metadata": {}
+  }],
+  "object_contracts": [{ "required_fields": ["ocp.commerce.product.core.v1#/title"], "optional_fields": ["ocp.commerce.product.core.v1#/brand"], "additional_fields_policy": "reject" }]
+}

@@ -1,0 +1,18 @@
+{
+  "ocp_version": "1.0",
+  "kind": "CatalogManifest",
+  "id": "manifest-minimal",
+  "catalog_id": "catalog-minimal",
+  "catalog_name": "Minimal Catalog",
+  "endpoints": {
+    "query": { "url": "https://catalog.example.test/query", "method": "POST" },
+    "resolve": { "url": "https://catalog.example.test/resolve", "method": "POST" }
+  },
+  "query_capabilities": [{
+    "capability_id": "commerce.search",
+    "query_packs": [{ "pack_id": "product-search", "query_modes": [], "metadata": {} }],
+    "input_fields": [],
+    "metadata": {}
+  }],
+  "object_contracts": []
+}
