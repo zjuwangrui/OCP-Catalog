@@ -27,8 +27,13 @@ import {
 } from '@ocp-catalog/registration-schema';
 export {
   catalogCapabilityProfileSchema,
+  catalogCapabilityRequirementsSchema,
+  catalogCapabilityMatchResultSchema,
   deriveCatalogCapabilityProfile,
+  matchCatalogCapabilityProfile,
   type CatalogCapabilityProfile,
+  type CatalogCapabilityRequirements,
+  type CatalogCapabilityMatchResult,
   type ProfileSourceRef,
 } from './capabilities';
 
